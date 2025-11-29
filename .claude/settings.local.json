@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)",
+      "Bash(curl:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 3 /nobreak)",
+      "Bash(nul)",
+      "Bash(ping:*)",
+      "Bash(docker compose:*)",
+      "Bash(start http://localhost:3000)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill /F /PID 5228)",
+      "Bash(taskkill //F //PID 5228)",
+      "Bash(cat:*)",
+      "Bash(taskkill //F //PID 2480)",
+      "Bash(taskkill //F //PID 20344)",
+      "Bash(taskkill //F //PID 27240)",
+      "Bash(dir /b)",
+      "Bash(set PORT=3000)",
+      "Bash(taskkill //F //PID 17512)",
+      "Bash(taskkill //F //PID 8484)",
+      "Bash(taskkill:*)",
+      "Bash(taskkill //F //PID 21420)",
+      "Bash(start http://localhost:3000/content)",
+      "Bash(docker exec:*)",
+      "Bash(start http://localhost:3000/settings)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(if exist nul del nul)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

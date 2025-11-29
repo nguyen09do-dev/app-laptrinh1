@@ -1,0 +1,59 @@
+import 'dotenv/config'; // Load environment variables first
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import { ideasRoutes } from './routes/ideas.routes.js';
+import { briefsRoutes } from './routes/briefs.routes.js';
+import { contentsRoutes } from './routes/contents.routes.js';
+import { analyticsRoutes } from './routes/analytics.routes.js';
+import { settingsRoutes } from './routes/settings.routes.js';
+import { db } from './lib/db.js';
+
+// Tạo Fastify instance
+const fastify = Fastify({
+  logger: true, // Bật logging để debug
+});
+
+// Đăng ký CORS để frontend có thể gọi API
+fastify.register(cors, {
+  origin: ['http://localhost:3000', 'http://localhost:3002'], // Cho phép frontend Next.js
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization'],
+});
+
+// Đăng ký routes
+fastify.register(ideasRoutes, { prefix: '/api' });
+fastify.register(briefsRoutes, { prefix: '/api' });
+fastify.register(contentsRoutes, { prefix: '/api' });
+fastify.register(analyticsRoutes, { prefix: '/api' });
+fastify.register(settingsRoutes, { prefix: '/api' });
+
+// Health check endpoint
+fastify.get('/health', async () => {
+  return { status: 'ok', timestamp: new Date().toISOString() };
+});
+
+// Hàm khởi động server
+const start = async () => {
+  try {
+    // Kiểm tra kết nối database
+    await db.query('SELECT NOW()');
+    console.log('✅ Database connected successfully');
+
+    // Khởi động server
+    const port = parseInt(process.env.PORT || '3001');
+    const host = process.env.HOST || '0.0.0.0';
+    
+    await fastify.listen({ port, host });
+    console.log(`🚀 Server running at http://localhost:${port}`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+// Chạy server
+start();
+
+
+
