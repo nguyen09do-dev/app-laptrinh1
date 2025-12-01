@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, Legend } from 'recharts';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -57,6 +57,14 @@ interface ProductivityData {
   avgTimeToContent: number;
 }
 
+const chartColors = {
+  primary: '#7a91f8',
+  secondary: '#ff6b6b',
+  success: '#34d399',
+  warning: '#fbbf24',
+  info: '#60a5fa',
+};
+
 export default function AnalyticsPage() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [timeline, setTimeline] = useState<TimelineData | null>(null);
@@ -64,17 +72,18 @@ export default function AnalyticsPage() {
   const [productivity, setProductivity] = useState<ProductivityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'timeline' | 'insights' | 'productivity'>('overview');
+  const [timelineRange, setTimelineRange] = useState<7 | 30 | 90>(30);
 
   useEffect(() => {
     fetchAllData();
-  }, []);
+  }, [timelineRange]);
 
   const fetchAllData = async () => {
     setLoading(true);
     try {
       const [overviewRes, timelineRes, personaRes, productivityRes] = await Promise.all([
         fetch('http://localhost:3001/api/analytics/overview'),
-        fetch('http://localhost:3001/api/analytics/timeline?days=30'),
+        fetch(`http://localhost:3001/api/analytics/timeline?days=${timelineRange}`),
         fetch('http://localhost:3001/api/analytics/persona-industry'),
         fetch('http://localhost:3001/api/analytics/productivity'),
       ]);
@@ -98,6 +107,61 @@ export default function AnalyticsPage() {
   const formatNumber = (num: number) => {
     if (num >= 1000) return `${(num / 1000).toFixed(1)}k`;
     return num.toString();
+  };
+
+  // Format date for analytics charts (e.g., "2024-11-26" -> "26/11")
+  const formatAnalyticsDate = (dateString: string) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      const day = date.getDate();
+      const month = date.getMonth() + 1;
+      return `${day}/${month}`;
+    } catch {
+      return dateString.split('-')[2] || dateString;
+    }
+  };
+
+  // Prepare timeline chart data
+  const timelineChartData = timeline?.ideas?.map((item, idx) => {
+    const briefCount = timeline.briefs[idx] ? parseInt(timeline.briefs[idx].count) : 0;
+    const contentCount = timeline.contents[idx] ? parseInt(timeline.contents[idx].count) : 0;
+    return {
+      date: formatAnalyticsDate(item.date),
+      ideas: parseInt(item.count) || 0,
+      approved: parseInt(item.approved) || 0,
+      briefs: briefCount,
+      contents: contentCount,
+    };
+  }) || [];
+
+  // Prepare persona/industry chart data
+  const personaChartData = personaIndustry?.personas?.slice(0, 10).map(item => ({
+    name: item.persona,
+    total: parseInt(item.count) || 0,
+    approved: parseInt(item.approved) || 0,
+  })) || [];
+
+  const industryChartData = personaIndustry?.industries?.slice(0, 10).map(item => ({
+    name: item.industry,
+    total: parseInt(item.count) || 0,
+    approved: parseInt(item.approved) || 0,
+  })) || [];
+
+  const customTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-midnight-900/95 border border-midnight-700 rounded-lg p-3 shadow-lg">
+          <p className="text-midnight-200 font-medium mb-2">{label}</p>
+          {payload.map((entry: any, idx: number) => (
+            <p key={idx} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -183,8 +247,8 @@ export default function AnalyticsPage() {
                   </div>
                 </div>
 
-                {/* Conversion Rates */}
-                <div className="grid md:grid-cols-3 gap-6">
+                {/* Conversion Rates with Chart */}
+                <div className="grid md:grid-cols-2 gap-6">
                   <div className="glass-card rounded-2xl p-6">
                     <h3 className="text-lg font-semibold text-midnight-100 mb-4">🔄 Conversion Rates</h3>
                     <div className="space-y-4">
@@ -229,30 +293,7 @@ export default function AnalyticsPage() {
 
                   {/* Status Breakdown */}
                   <div className="glass-card rounded-2xl p-6">
-                    <h3 className="text-lg font-semibold text-midnight-100 mb-4">📋 Ideas Status</h3>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-2 bg-midnight-900/30 rounded">
-                        <span className="text-midnight-300 text-sm">Mới tạo</span>
-                        <span className="text-blue-400 font-semibold">{overview.ideas.generated}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-midnight-900/30 rounded">
-                        <span className="text-midnight-300 text-sm">Đã chọn</span>
-                        <span className="text-yellow-400 font-semibold">{overview.ideas.shortlisted}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-midnight-900/30 rounded">
-                        <span className="text-midnight-300 text-sm">Đã duyệt</span>
-                        <span className="text-green-400 font-semibold">{overview.ideas.approved}</span>
-                      </div>
-                      <div className="flex items-center justify-between p-2 bg-midnight-900/30 rounded">
-                        <span className="text-midnight-300 text-sm">Lưu trữ</span>
-                        <span className="text-gray-400 font-semibold">{overview.ideas.archived}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Content Status */}
-                  <div className="glass-card rounded-2xl p-6">
-                    <h3 className="text-lg font-semibold text-midnight-100 mb-4">📄 Content Status</h3>
+                    <h3 className="text-lg font-semibold text-midnight-100 mb-4">📋 Content Status</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-2 bg-midnight-900/30 rounded">
                         <span className="text-midnight-300 text-sm">Draft</span>
@@ -272,69 +313,169 @@ export default function AnalyticsPage() {
               </div>
             )}
 
-            {/* Timeline Tab */}
-            {activeTab === 'timeline' && timeline?.ideas && (
-              <div className="glass-card rounded-2xl p-6">
-                <h2 className="text-2xl font-semibold text-midnight-100 mb-6">📅 Timeline (30 ngày gần nhất)</h2>
-                <div className="space-y-4">
-                  {timeline.ideas.length === 0 ? (
-                    <p className="text-midnight-400 text-center py-8">Chưa có dữ liệu timeline</p>
-                  ) : (
-                    timeline.ideas.map((item, idx) => (
-                      <div key={idx} className="p-4 bg-midnight-900/30 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-midnight-200 font-medium">{item.date}</span>
-                          <div className="flex gap-4 text-sm">
-                            <span className="text-blue-400">💡 {item.count} ideas</span>
-                            <span className="text-green-400">✅ {item.approved} approved</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
+            {/* Timeline Tab with Line Chart */}
+            {activeTab === 'timeline' && timelineChartData.length > 0 && (
+              <div className="space-y-6">
+                <div className="glass-card rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-2xl font-semibold text-midnight-100">📅 Timeline Trends</h2>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setTimelineRange(7)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          timelineRange === 7
+                            ? 'bg-midnight-600 text-white'
+                            : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                        }`}
+                      >
+                        7 ngày
+                      </button>
+                      <button
+                        onClick={() => setTimelineRange(30)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          timelineRange === 30
+                            ? 'bg-midnight-600 text-white'
+                            : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                        }`}
+                      >
+                        30 ngày
+                      </button>
+                      <button
+                        onClick={() => setTimelineRange(90)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          timelineRange === 90
+                            ? 'bg-midnight-600 text-white'
+                            : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                        }`}
+                      >
+                        90 ngày
+                      </button>
+                    </div>
+                  </div>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={timelineChartData} margin={{ top: 10, right: 30, left: 10, bottom: 25 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                        <XAxis
+                          dataKey="date"
+                          stroke="#64748b"
+                          tick={{ fill: '#94a3b8', fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#334155' }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          interval={Math.floor(timelineChartData.length / 8) || 0}
+                        />
+                        <YAxis
+                          stroke="#64748b"
+                          tick={{ fill: '#94a3b8', fontSize: 12 }}
+                          tickLine={false}
+                          axisLine={{ stroke: '#334155' }}
+                          allowDecimals={false}
+                        />
+                        <Tooltip content={customTooltip} />
+                        <Legend wrapperStyle={{ fontSize: '13px', paddingTop: '10px' }} />
+                        <Line
+                          type="monotone"
+                          dataKey="ideas"
+                          stroke={chartColors.primary}
+                          strokeWidth={3}
+                          dot={{ r: 4, strokeWidth: 2 }}
+                          activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                          name="Ideas"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="approved"
+                          stroke={chartColors.success}
+                          strokeWidth={3}
+                          dot={{ r: 4, strokeWidth: 2 }}
+                          activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                          name="Approved"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="briefs"
+                          stroke={chartColors.warning}
+                          strokeWidth={3}
+                          dot={{ r: 4, strokeWidth: 2 }}
+                          activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                          name="Briefs"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="contents"
+                          stroke={chartColors.secondary}
+                          strokeWidth={3}
+                          dot={{ r: 4, strokeWidth: 2 }}
+                          activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                          name="Contents"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Insights Tab */}
+            {/* Insights Tab with Bar Charts */}
             {activeTab === 'insights' && personaIndustry?.personas && (
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="glass-card rounded-2xl p-6">
                   <h2 className="text-xl font-semibold text-midnight-100 mb-4">👥 Top Personas</h2>
-                  <div className="space-y-3">
-                    {personaIndustry.personas.length === 0 ? (
-                      <p className="text-midnight-400">Chưa có dữ liệu</p>
-                    ) : (
-                      personaIndustry.personas.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-midnight-900/30 rounded-lg">
-                          <div>
-                            <div className="text-midnight-100 font-medium">{item.persona}</div>
-                            <div className="text-xs text-midnight-400">{item.approved} approved</div>
-                          </div>
-                          <div className="text-2xl font-bold text-blue-400">{item.count}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  {personaChartData.length > 0 ? (
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={personaChartData} margin={{ top: 5, right: 30, left: 0, bottom: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis 
+                            dataKey="name" 
+                            angle={-45}
+                            textAnchor="end"
+                            height={100}
+                            stroke="#a3b8fc"
+                            tick={{ fill: '#a3b8fc', fontSize: 10 }}
+                          />
+                          <YAxis stroke="#a3b8fc" tick={{ fill: '#a3b8fc', fontSize: 12 }} />
+                          <Tooltip content={customTooltip} />
+                          <Legend />
+                          <Bar dataKey="total" fill={chartColors.primary} name="Total" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="approved" fill={chartColors.success} name="Approved" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-midnight-400 text-center py-8">Chưa có dữ liệu</p>
+                  )}
                 </div>
 
                 <div className="glass-card rounded-2xl p-6">
                   <h2 className="text-xl font-semibold text-midnight-100 mb-4">🏢 Top Industries</h2>
-                  <div className="space-y-3">
-                    {personaIndustry.industries.length === 0 ? (
-                      <p className="text-midnight-400">Chưa có dữ liệu</p>
-                    ) : (
-                      personaIndustry.industries.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-midnight-900/30 rounded-lg">
-                          <div>
-                            <div className="text-midnight-100 font-medium">{item.industry}</div>
-                            <div className="text-xs text-midnight-400">{item.approved} approved</div>
-                          </div>
-                          <div className="text-2xl font-bold text-yellow-400">{item.count}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                  {industryChartData.length > 0 ? (
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={industryChartData} margin={{ top: 5, right: 30, left: 0, bottom: 60 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                          <XAxis 
+                            dataKey="name" 
+                            angle={-45}
+                            textAnchor="end"
+                            height={100}
+                            stroke="#a3b8fc"
+                            tick={{ fill: '#a3b8fc', fontSize: 10 }}
+                          />
+                          <YAxis stroke="#a3b8fc" tick={{ fill: '#a3b8fc', fontSize: 12 }} />
+                          <Tooltip content={customTooltip} />
+                          <Legend />
+                          <Bar dataKey="total" fill={chartColors.warning} name="Total" radius={[6, 6, 0, 0]} />
+                          <Bar dataKey="approved" fill={chartColors.success} name="Approved" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-midnight-400 text-center py-8">Chưa có dữ liệu</p>
+                  )}
                 </div>
               </div>
             )}

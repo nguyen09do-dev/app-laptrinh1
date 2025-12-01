@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useBackground } from '@/app/contexts/BackgroundContext';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -45,12 +46,13 @@ interface SystemInfo {
 }
 
 export default function SettingsPage() {
+  const { theme, setTheme } = useBackground();
   const [settings, setSettings] = useState<SystemSettings | null>(null);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'ai' | 'content' | 'notifications' | 'system'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'content' | 'notifications' | 'appearance' | 'system'>('ai');
 
   useEffect(() => {
     fetchSettings();
@@ -176,7 +178,7 @@ export default function SettingsPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          {(['ai', 'content', 'notifications', 'system'] as const).map((tab) => (
+          {(['ai', 'content', 'notifications', 'appearance', 'system'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -189,6 +191,7 @@ export default function SettingsPage() {
               {tab === 'ai' && '🤖 AI Settings'}
               {tab === 'content' && '📝 Content'}
               {tab === 'notifications' && '🔔 Notifications'}
+              {tab === 'appearance' && '🎨 Appearance'}
               {tab === 'system' && 'ℹ️ System Info'}
             </button>
           ))}
@@ -313,6 +316,98 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* Appearance Settings Tab */}
+        {activeTab === 'appearance' && (
+          <div className="glass-card rounded-2xl p-6 mb-6">
+            <h2 className="text-2xl font-semibold text-midnight-100 mb-6">🎨 Appearance Settings</h2>
+            <div className="space-y-6">
+              <div>
+                <label className="block text-midnight-200 font-medium mb-4">Background Theme</label>
+                <p className="text-sm text-midnight-400 mb-4">
+                  Chọn background theme cho toàn bộ ứng dụng
+                </p>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {/* Aurora Borealis */}
+                  <button
+                    onClick={() => setTheme('aurora')}
+                    className={`relative group p-4 rounded-xl border-2 transition-all ${
+                      theme === 'aurora'
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="h-32 rounded-lg overflow-hidden mb-3 relative">
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a1f] via-[#1a1a3e] to-[#0a0a1f]" />
+                      <div className="absolute inset-0 opacity-40">
+                        <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-emerald-500/30 via-blue-500/20 to-transparent blur-2xl" />
+                        <div className="absolute top-5 left-0 right-0 h-20 bg-gradient-to-b from-purple-500/30 via-pink-500/20 to-transparent blur-2xl" />
+                      </div>
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                      Aurora Borealis
+                      {theme === 'aurora' && (
+                        <span className="text-xs px-2 py-1 bg-blue-500 rounded-full">✓ Đang dùng</span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-gray-400">Ánh sáng cực quang đẹp mắt</p>
+                  </button>
+
+                  {/* Deep Ocean */}
+                  <button
+                    onClick={() => setTheme('ocean')}
+                    className={`relative group p-4 rounded-xl border-2 transition-all ${
+                      theme === 'ocean'
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="h-32 rounded-lg overflow-hidden mb-3 relative">
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#001a2e] via-[#002642] to-[#001a2e]" />
+                      <div className="absolute top-0 left-1/4 w-16 h-full opacity-10 bg-gradient-to-b from-cyan-300/30 to-transparent" />
+                      <div className="absolute bottom-1/4 left-1/4 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                      Deep Ocean
+                      {theme === 'ocean' && (
+                        <span className="text-xs px-2 py-1 bg-blue-500 rounded-full">✓ Đang dùng</span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-gray-400">Đại dương sâu thẳm huyền bí</p>
+                  </button>
+
+                  {/* Sunset Gradient */}
+                  <button
+                    onClick={() => setTheme('sunset')}
+                    className={`relative group p-4 rounded-xl border-2 transition-all ${
+                      theme === 'sunset'
+                        ? 'border-blue-500 bg-blue-500/10'
+                        : 'border-white/10 bg-white/5 hover:border-white/30'
+                    }`}
+                  >
+                    <div className="h-32 rounded-lg overflow-hidden mb-3 relative">
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#1a0f2e] via-[#2e1a4e] via-[#4e2a3e] to-[#2e1a1e]" />
+                      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-24 h-24 bg-orange-500/20 rounded-full blur-2xl" />
+                      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-16 h-16 bg-pink-500/20 rounded-full blur-2xl" />
+                    </div>
+                    <h3 className="text-lg font-bold text-white mb-1 flex items-center gap-2">
+                      Sunset Gradient
+                      {theme === 'sunset' && (
+                        <span className="text-xs px-2 py-1 bg-blue-500 rounded-full">✓ Đang dùng</span>
+                      )}
+                    </h3>
+                    <p className="text-sm text-gray-400">Hoàng hôn ấm áp lãng mạn</p>
+                  </button>
+                </div>
+                <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <p className="text-sm text-blue-300">
+                    💡 <strong>Tip:</strong> Background theme sẽ được áp dụng ngay lập tức và lưu tự động.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Notifications Settings Tab */}
         {activeTab === 'notifications' && settings?.notifications && (
           <div className="glass-card rounded-2xl p-6 mb-6">
@@ -416,7 +511,7 @@ export default function SettingsPage() {
         )}
 
         {/* Save Button */}
-        {activeTab !== 'system' && (
+        {activeTab !== 'system' && activeTab !== 'appearance' && (
           <div className="flex justify-end gap-4">
             <button
               onClick={handleSave}

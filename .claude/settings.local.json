@@ -30,7 +30,20 @@
       "Bash(git init:*)",
       "Bash(git remote add:*)",
       "Bash(git add:*)",
-      "Bash(if exist nul del nul)"
+      "Bash(if exist nul del nul)",
+      "Bash(dir /b:*)",
+      "Bash(timeout:*)",
+      "Bash(start http://localhost:3001)",
+      "Bash(git restore:*)",
+      "Bash(start http://localhost:3002)",
+      "Bash(set PORT=3001)",
+      "Bash(if exist \"frontend\\.next\" rmdir /s /q \"frontend\\.next\")",
+      "Bash(if exist \"frontend\\node_modules\\.cache\" rmdir /s /q \"frontend\\node_modules\\.cache\")",
+      "Bash(python -m json.tool:*)",
+      "Bash(start http://localhost:3000/welcome)",
+      "Bash(del \"G:\\Code01-HWAIcontentmulti\\frontend\\app\\welcome\\layout.tsx\")",
+      "Bash(start http://localhost:3000/bg-preview)",
+      "Bash(start http://localhost:3000/dashboard)"
     ],
     "deny": [],
     "ask": []

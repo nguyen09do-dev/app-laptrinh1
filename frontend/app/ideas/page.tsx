@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import FlowmapVisual from '../components/FlowmapVisual';
+import { EmptyState } from '@/components/ui/empty-state';
+import { TableSkeleton } from '@/components/ui/loading-skeleton';
+import { showToast } from '@/lib/toast';
+import { Lightbulb, Search, Filter } from 'lucide-react';
 
 interface Idea {
   id: number;
@@ -38,6 +42,19 @@ interface ApiResponse<T> {
   message?: string;
 }
 
+// Gợi ý từ khóa
+const INDUSTRY_SUGGESTIONS = [
+  'Technology', 'E-commerce', 'Education', 'Healthcare', 'Finance',
+  'Real Estate', 'Food & Beverage', 'Fashion', 'Travel', 'Entertainment',
+  'Fitness', 'Beauty', 'Gaming', 'Marketing', 'Consulting'
+];
+
+const PERSONA_SUGGESTIONS = [
+  'Content Creator', 'Startup Founder', 'Marketing Manager', 'Student',
+  'Small Business Owner', 'Freelancer', 'Entrepreneur', 'Developer',
+  'Designer', 'Teacher', 'Coach', 'Consultant', 'Blogger', 'Influencer'
+];
+
 export default function IdeasPage() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,11 +62,16 @@ export default function IdeasPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<Idea | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterIndustry, setFilterIndustry] = useState<string>('all');
+  const [filterPersona, setFilterPersona] = useState<string>('all');
   const [generatingImplementation, setGeneratingImplementation] = useState(false);
+  const [creatingBrief, setCreatingBrief] = useState<number | null>(null);
 
   // Form state - CHỈ CÓ 2 TRƯỜNG
   const [persona, setPersona] = useState('');
   const [industry, setIndustry] = useState('');
+  const [showIndustrySuggestions, setShowIndustrySuggestions] = useState(false);
+  const [showPersonaSuggestions, setShowPersonaSuggestions] = useState(false);
 
   const fetchIdeas = async () => {
     setLoading(true);
@@ -62,10 +84,12 @@ export default function IdeasPage() {
       if (result.success && result.data) {
         setIdeas(result.data);
       } else {
+        showToast.error(result.error || 'Không thể tải ideas');
         setError(result.error || 'Failed to fetch ideas');
       }
     } catch (err) {
       console.error('Fetch error:', err);
+      showToast.error('Không thể kết nối đến server');
       setError('Không thể kết nối đến server');
     } finally {
       setLoading(false);
@@ -100,11 +124,14 @@ export default function IdeasPage() {
         setPersona('');
         setIndustry('');
         setError(null);
+        showToast.success('Đã tạo 10 ideas mới thành công!');
       } else {
+        showToast.error(result.error || 'Không thể tạo ideas');
         setError(result.error || 'Failed to generate ideas');
       }
     } catch (err) {
       console.error('Generate error:', err);
+      showToast.error('Không thể kết nối đến server');
       setError('Không thể kết nối đến server');
     } finally {
       setGenerating(false);
@@ -126,11 +153,14 @@ export default function IdeasPage() {
         if (selectedIdea?.id === id) {
           setSelectedIdea(result.data || null);
         }
+        showToast.success('Đã duyệt idea thành công!');
       } else {
+        showToast.error(result.error || 'Không thể duyệt idea');
         setError(result.error || 'Failed to approve idea');
       }
     } catch (err) {
       console.error('Approve error:', err);
+      showToast.error('Không thể duyệt idea');
       setError('Không thể duyệt idea');
     }
   };
@@ -230,6 +260,34 @@ export default function IdeasPage() {
     }
   };
 
+  const handleCreateBrief = async (ideaId: number) => {
+    setCreatingBrief(ideaId);
+    setError(null);
+
+    try {
+      const response = await fetch(`http://localhost:3001/api/briefs/from-idea/${ideaId}`, {
+        method: 'POST',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        showToast.success('Đã tạo brief thành công!');
+        // Optionally close modal or refresh
+        setSelectedIdea(null);
+      } else {
+        showToast.error(result.error || 'Không thể tạo brief');
+        setError(result.error || 'Không thể tạo brief');
+      }
+    } catch (err) {
+      console.error('Error creating brief:', err);
+      showToast.error('Lỗi khi tạo brief');
+      setError('Lỗi khi tạo brief');
+    } finally {
+      setCreatingBrief(null);
+    }
+  };
+
   useEffect(() => {
     fetchIdeas();
   }, []);
@@ -259,9 +317,17 @@ export default function IdeasPage() {
     );
   };
 
-  const filteredIdeas = filterStatus === 'all'
-    ? ideas
-    : ideas.filter(idea => idea.status === filterStatus);
+  // Lọc ideas theo nhiều tiêu chí
+  const filteredIdeas = ideas.filter(idea => {
+    const matchStatus = filterStatus === 'all' || idea.status === filterStatus;
+    const matchIndustry = filterIndustry === 'all' || idea.industry === filterIndustry;
+    const matchPersona = filterPersona === 'all' || idea.persona === filterPersona;
+    return matchStatus && matchIndustry && matchPersona;
+  });
+
+  // Lấy danh sách unique industries và personas
+  const uniqueIndustries = Array.from(new Set(ideas.map(i => i.industry))).sort();
+  const uniquePersonas = Array.from(new Set(ideas.map(i => i.persona))).sort();
 
   const stats = {
     total: ideas.length,
@@ -313,7 +379,7 @@ export default function IdeasPage() {
             <h2 className="text-xl font-semibold mb-6 text-midnight-100">✨ Tạo 10 Ideas Mới</h2>
 
             <div className="grid md:grid-cols-2 gap-4 mb-6">
-              <div>
+              <div className="relative">
                 <label htmlFor="persona" className="block text-sm font-medium text-midnight-300 mb-2">
                   Persona (Đối tượng) *
                 </label>
@@ -322,13 +388,32 @@ export default function IdeasPage() {
                   id="persona"
                   value={persona}
                   onChange={(e) => setPersona(e.target.value)}
+                  onFocus={() => setShowPersonaSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowPersonaSuggestions(false), 200)}
                   placeholder="VD: Content Creator, Startup, Student..."
                   className="w-full px-4 py-3 bg-midnight-950/50 border border-midnight-700 rounded-xl text-midnight-100 placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-midnight-400 focus:border-transparent"
                   disabled={generating}
                   required
                 />
+                {showPersonaSuggestions && (
+                  <div className="absolute z-10 w-full mt-1 bg-midnight-900 border border-midnight-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    {PERSONA_SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => {
+                          setPersona(suggestion);
+                          setShowPersonaSuggestions(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-midnight-200 hover:bg-midnight-800 transition-colors text-sm"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div>
+              <div className="relative">
                 <label htmlFor="industry" className="block text-sm font-medium text-midnight-300 mb-2">
                   Industry (Ngành nghề) *
                 </label>
@@ -337,11 +422,30 @@ export default function IdeasPage() {
                   id="industry"
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
+                  onFocus={() => setShowIndustrySuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowIndustrySuggestions(false), 200)}
                   placeholder="VD: Technology, Retail, Education..."
                   className="w-full px-4 py-3 bg-midnight-950/50 border border-midnight-700 rounded-xl text-midnight-100 placeholder-midnight-500 focus:outline-none focus:ring-2 focus:ring-midnight-400 focus:border-transparent"
                   disabled={generating}
                   required
                 />
+                {showIndustrySuggestions && (
+                  <div className="absolute z-10 w-full mt-1 bg-midnight-900 border border-midnight-700 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    {INDUSTRY_SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => {
+                          setIndustry(suggestion);
+                          setShowIndustrySuggestions(false);
+                        }}
+                        className="w-full px-4 py-2 text-left text-midnight-200 hover:bg-midnight-800 transition-colors text-sm"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -374,85 +478,207 @@ export default function IdeasPage() {
         )}
 
         {/* Filter tabs */}
-        <section className="mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={() => setFilterStatus('all')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filterStatus === 'all'
-                  ? 'bg-midnight-600 text-white'
-                  : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
-              }`}
-            >
-              Tất cả ({stats.total})
-            </button>
-            <button
-              onClick={() => setFilterStatus('generated')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filterStatus === 'generated'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
-              }`}
-            >
-              Mới tạo ({stats.generated})
-            </button>
-            <button
-              onClick={() => setFilterStatus('shortlisted')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filterStatus === 'shortlisted'
-                  ? 'bg-yellow-600 text-white'
-                  : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
-              }`}
-            >
-              Đã chọn ({stats.shortlisted})
-            </button>
-            <button
-              onClick={() => setFilterStatus('approved')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filterStatus === 'approved'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
-              }`}
-            >
-              Đã duyệt ({stats.approved})
-            </button>
-            <button
-              onClick={() => setFilterStatus('archived')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                filterStatus === 'archived'
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
-              }`}
-            >
-              Lưu trữ ({stats.archived})
-            </button>
+        <section className="mb-6 space-y-4">
+          {/* Status filters */}
+          <div>
+            <h3 className="text-sm font-medium text-midnight-300 mb-2">📊 Lọc theo Trạng thái</h3>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setFilterStatus('all')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filterStatus === 'all'
+                    ? 'bg-midnight-600 text-white'
+                    : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                }`}
+              >
+                Tất cả ({stats.total})
+              </button>
+              <button
+                onClick={() => setFilterStatus('generated')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filterStatus === 'generated'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                }`}
+              >
+                Mới tạo ({stats.generated})
+              </button>
+              <button
+                onClick={() => setFilterStatus('shortlisted')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filterStatus === 'shortlisted'
+                    ? 'bg-yellow-600 text-white'
+                    : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                }`}
+              >
+                Đã chọn ({stats.shortlisted})
+              </button>
+              <button
+                onClick={() => setFilterStatus('approved')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filterStatus === 'approved'
+                    ? 'bg-green-600 text-white'
+                    : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                }`}
+              >
+                Đã duyệt ({stats.approved})
+              </button>
+              <button
+                onClick={() => setFilterStatus('archived')}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  filterStatus === 'archived'
+                    ? 'bg-gray-600 text-white'
+                    : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                }`}
+              >
+                Lưu trữ ({stats.archived})
+              </button>
+            </div>
           </div>
+
+          {/* Industry & Persona filters */}
+          {uniqueIndustries.length > 0 && (
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Industry filter */}
+              <div>
+                <h3 className="text-sm font-medium text-midnight-300 mb-2">🏢 Lọc theo Ngành nghề</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setFilterIndustry('all')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterIndustry === 'all'
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                    }`}
+                  >
+                    Tất cả ({ideas.length})
+                  </button>
+                  {uniqueIndustries.map((ind) => {
+                    const count = ideas.filter(i => i.industry === ind).length;
+                    return (
+                      <button
+                        key={ind}
+                        onClick={() => setFilterIndustry(ind)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          filterIndustry === ind
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                        }`}
+                      >
+                        {ind} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Persona filter */}
+              <div>
+                <h3 className="text-sm font-medium text-midnight-300 mb-2">👤 Lọc theo Persona</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={() => setFilterPersona('all')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      filterPersona === 'all'
+                        ? 'bg-coral-600 text-white'
+                        : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                    }`}
+                  >
+                    Tất cả ({ideas.length})
+                  </button>
+                  {uniquePersonas.map((per) => {
+                    const count = ideas.filter(i => i.persona === per).length;
+                    return (
+                      <button
+                        key={per}
+                        onClick={() => setFilterPersona(per)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                          filterPersona === per
+                            ? 'bg-coral-600 text-white'
+                            : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                        }`}
+                      >
+                        {per} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active filters summary */}
+          {(filterStatus !== 'all' || filterIndustry !== 'all' || filterPersona !== 'all') && (
+            <div className="flex items-center gap-2 flex-wrap p-3 bg-midnight-900/30 rounded-lg border border-midnight-700">
+              <span className="text-sm text-midnight-300">Đang lọc:</span>
+              {filterStatus !== 'all' && (
+                <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
+                  Trạng thái: {filterStatus}
+                </span>
+              )}
+              {filterIndustry !== 'all' && (
+                <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
+                  Ngành: {filterIndustry}
+                </span>
+              )}
+              {filterPersona !== 'all' && (
+                <span className="px-2 py-1 bg-coral-500/20 text-coral-300 rounded text-xs">
+                  Persona: {filterPersona}
+                </span>
+              )}
+              <button
+                onClick={() => {
+                  setFilterStatus('all');
+                  setFilterIndustry('all');
+                  setFilterPersona('all');
+                }}
+                className="ml-auto px-3 py-1 bg-midnight-800 hover:bg-midnight-700 text-midnight-300 rounded text-xs transition-colors"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Ideas List */}
         <section>
           {loading && ideas.length === 0 && (
-            <div className="text-center py-16">
-              <div className="spinner mx-auto mb-4" />
-              <p className="text-midnight-400">Đang tải dữ liệu...</p>
-            </div>
+            <TableSkeleton rows={5} />
           )}
 
-          {!loading && filteredIdeas.length === 0 && (
-            <div className="text-center py-16 glass-card rounded-2xl">
-              <span className="text-6xl mb-4 block">💡</span>
-              <h3 className="text-xl font-semibold text-midnight-200 mb-2">
-                {filterStatus === 'all' ? 'Chưa có ideas nào' : 'Không có ideas nào ở trạng thái này'}
-              </h3>
-              <p className="text-midnight-400">
-                {filterStatus === 'all' && 'Nhập Persona và Industry, sau đó click Generate!'}
-              </p>
-            </div>
+          {!loading && filteredIdeas.length === 0 && ideas.length > 0 && (
+            <EmptyState
+              icon={Search}
+              title="Không tìm thấy ideas phù hợp"
+              description="Thử điều chỉnh bộ lọc của bạn"
+              action={{
+                label: 'Xóa tất cả bộ lọc',
+                onClick: () => {
+                  setFilterStatus('all');
+                  setFilterIndustry('all');
+                  setFilterPersona('all');
+                },
+              }}
+            />
+          )}
+
+          {!loading && filteredIdeas.length === 0 && ideas.length === 0 && (
+            <EmptyState
+              icon={Lightbulb}
+              title="Chưa có ideas nào"
+              description="Nhập Persona và Industry, sau đó click Generate để tạo ideas mới!"
+            />
           )}
 
           {filteredIdeas.length > 0 && (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredIdeas.map((idea) => (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-midnight-300 text-sm">
+                  Hiển thị <span className="font-semibold text-midnight-100">{filteredIdeas.length}</span> trong tổng số <span className="font-semibold text-midnight-100">{ideas.length}</span> ideas
+                </p>
+              </div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredIdeas.map((idea) => (
                 <article
                   key={idea.id}
                   onClick={() => setSelectedIdea(idea)}
@@ -478,7 +704,8 @@ export default function IdeasPage() {
                   </div>
                 </article>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </section>
 
@@ -628,6 +855,25 @@ export default function IdeasPage() {
               </div>
 
               <div className="flex gap-3 pt-6 mt-6 border-t border-midnight-800">
+                {selectedIdea.status === 'approved' && (
+                  <button
+                    onClick={() => handleCreateBrief(selectedIdea.id)}
+                    disabled={creatingBrief === selectedIdea.id}
+                    className="py-3 px-6 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 font-semibold rounded-xl transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {creatingBrief === selectedIdea.id ? (
+                      <>
+                        <div className="spinner w-4 h-4 border-2" />
+                        <span>Đang tạo...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>📝</span>
+                        <span>Tạo Brief</span>
+                      </>
+                    )}
+                  </button>
+                )}
                 {selectedIdea.status !== 'approved' && (
                   <button
                     onClick={() => handleApprove(selectedIdea.id)}

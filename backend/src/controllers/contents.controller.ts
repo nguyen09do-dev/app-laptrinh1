@@ -31,15 +31,20 @@ export class ContentsController {
     }
   }
 
-  async generateContentFromBrief(request: FastifyRequest<{ Params: { briefId: string } }>, reply: FastifyReply) {
+  async generateContentFromBrief(request: FastifyRequest<{
+    Params: { briefId: string };
+    Body: { wordCount?: number; style?: string }
+  }>, reply: FastifyReply) {
     try {
       const briefId = parseInt(request.params.briefId);
       if (isNaN(briefId)) {
         return reply.status(400).send({ success: false, error: 'Invalid brief ID' });
       }
 
-      console.log(`📝 Generating content from brief ${briefId}`);
-      const content = await contentsService.generateContentFromBrief(briefId);
+      const { wordCount, style } = request.body || {};
+
+      console.log(`📝 Generating content from brief ${briefId} with options:`, { wordCount, style });
+      const content = await contentsService.generateContentFromBrief(briefId, { wordCount, style });
 
       return reply.send({ success: true, data: content, message: 'Content generated successfully' });
     } catch (error) {
@@ -70,6 +75,30 @@ export class ContentsController {
     } catch (error) {
       console.error('Error deleting content:', error);
       return reply.status(500).send({ success: false, error: 'Failed to delete content' });
+    }
+  }
+
+  /**
+   * POST /api/contents/clean-all
+   * Clean and normalize all existing contents
+   */
+  async cleanAllContents(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      console.log('🧹 API: Starting cleanup of all contents...');
+      const result = await contentsService.cleanAllContents();
+      
+      return reply.send({
+        success: true,
+        message: `Đã cập nhật ${result.updated} contents`,
+        data: {
+          updated: result.updated,
+          contents: result.contents
+        }
+      });
+    } catch (error) {
+      console.error('Error cleaning contents:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return reply.status(500).send({ success: false, error: `Failed to clean contents: ${errorMessage}` });
     }
   }
 }

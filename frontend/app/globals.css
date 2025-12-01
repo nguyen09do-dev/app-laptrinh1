@@ -109,5 +109,62 @@ body {
   box-shadow: 0 12px 40px rgba(122, 145, 248, 0.2);
 }
 
+/* Chart styling utilities */
+.recharts-wrapper {
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: #a3b8fc;
+}
+
+.recharts-legend-wrapper {
+  color: #f0f4ff;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+
+/* Enhanced card hover effects */
+.glass-card {
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(122, 145, 248, 0.15);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Smooth transitions for interactive elements */
+button, a {
+  transition: all 0.2s ease;
+}
+
+/* Chart container improvements */
+.chart-container {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+
 
 

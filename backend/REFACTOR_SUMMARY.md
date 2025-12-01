@@ -186,3 +186,4 @@ Nếu database đã tồn tại, chạy `backend/migration.sql` để:
 - Temperature: 0.7
 
 
+

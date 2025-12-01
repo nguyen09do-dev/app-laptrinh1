@@ -244,28 +244,28 @@ export class IdeasService {
     }
 
     // Simplified prompt - shorter responses = less errors - VIETNAMESE
-    const systemPrompt = `Ban la chuyen gia lap ke hoach. Tra ve JSON hop le. Khong dung markdown. Khong giai thich. QUAN TRONG: Tat ca noi dung PHAI viet bang TIENG VIET.`;
+    const systemPrompt = `Bạn là chuyên gia lập kế hoạch. Trả về JSON hợp lệ. Không dùng markdown. Không giải thích. QUAN TRỌNG: Tất cả nội dung PHẢI viết bằng TIẾNG VIỆT CÓ DẤU.`;
 
-    const userPrompt = `Tao ke hoach thuc hien cho y tuong: "${idea.title}"
+    const userPrompt = `Tạo kế hoạch thực hiện cho ý tưởng: "${idea.title}"
 
-Tra ve JSON theo cau truc nay:
+Trả về JSON theo cấu trúc này:
 {
   "steps": [
-    {"phase": "Giai doan 1", "tasks": ["Nhiem vu 1", "Nhiem vu 2"], "resources": ["Nguon luc 1"], "duration": "4 tuan"}
+    {"phase": "Giai đoạn 1", "tasks": ["Nhiệm vụ 1", "Nhiệm vụ 2"], "resources": ["Nguồn lực 1"], "duration": "4 tuần"}
   ],
   "feasibility": {
     "score": 8,
-    "risks": ["Rui ro 1", "Rui ro 2"],
-    "mitigations": ["Giai phap 1", "Giai phap 2"]
+    "risks": ["Rủi ro 1", "Rủi ro 2"],
+    "mitigations": ["Giải pháp 1", "Giải pháp 2"]
   }
 }
 
-Yeu cau:
-- 3-4 buoc thuc hien (steps)
-- Moi buoc: ten giai doan, cac nhiem vu, nguon luc can thiet, thoi gian
-- Diem kha thi: 1-10
-- 2-3 rui ro va giai phap
-- TAT CA bang tieng Viet, noi dung ngan gon, don gian`;
+Yêu cầu:
+- 3-4 bước thực hiện (steps)
+- Mỗi bước: tên giai đoạn, các nhiệm vụ, nguồn lực cần thiết, thời gian
+- Điểm khả thi: 1-10
+- 2-3 rủi ro và giải pháp
+- TẤT CẢ bằng tiếng Việt CÓ DẤU, nội dung ngắn gọn, đơn giản`;
 
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 

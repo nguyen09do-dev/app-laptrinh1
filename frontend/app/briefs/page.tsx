@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { showToast } from '@/lib/toast';
+import { TableSkeleton } from '@/components/ui/loading-skeleton';
+import { FileText } from 'lucide-react';
 
 interface Brief {
   id: number;
@@ -37,13 +41,22 @@ interface Idea {
 }
 
 export default function BriefsPage() {
+  const router = useRouter();
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [approvedIdeas, setApprovedIdeas] = useState<Idea[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<number | null>(null);
+  const [generatingContent, setGeneratingContent] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedBrief, setSelectedBrief] = useState<Brief | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showContentOptions, setShowContentOptions] = useState<number | null>(null);
+  const [contentOptions, setContentOptions] = useState({
+    wordCount: 800,
+    style: 'professional', // professional, casual, academic
+  });
+  const [filterIndustry, setFilterIndustry] = useState<string>('all');
+  const [filterPersona, setFilterPersona] = useState<string>('all');
 
   useEffect(() => {
     fetchData();
@@ -67,6 +80,7 @@ export default function BriefsPage() {
       setApprovedIdeas(approved || []);
     } catch (err) {
       console.error('Error fetching data:', err);
+      showToast.error('Không thể tải dữ liệu');
       setError('Không thể tải dữ liệu');
     } finally {
       setLoading(false);
@@ -86,16 +100,51 @@ export default function BriefsPage() {
 
       if (data.success) {
         await fetchData(); // Refresh data
-        setSuccessMessage('✅ Đã tạo brief thành công!');
-        setTimeout(() => setSuccessMessage(null), 3000); // Auto hide after 3s
+        showToast.success('Đã tạo brief thành công!');
+        setSuccessMessage(null);
       } else {
+        showToast.error(data.error || 'Không thể tạo brief');
         setError(data.error || 'Không thể tạo brief');
       }
     } catch (err) {
       console.error('Error creating brief:', err);
+      showToast.error('Không thể tạo brief');
       setError('Không thể tạo brief');
     } finally {
       setCreating(null);
+    }
+  };
+
+  const handleGenerateContent = async (briefId: number) => {
+    try {
+      setGeneratingContent(briefId);
+      setShowContentOptions(null); // Close modal
+
+      const response = await fetch(`http://localhost:3001/api/contents/from-brief/${briefId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          wordCount: contentOptions.wordCount,
+          style: contentOptions.style,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast.success('Đã tạo content thành công!');
+        // Navigate to content page with content ID to auto-open
+        router.push(`/content?openId=${data.data.id}`);
+      } else {
+        showToast.error(data.error || 'Không thể tạo content');
+      }
+    } catch (error) {
+      console.error('Error generating content:', error);
+      showToast.error('Lỗi khi tạo content');
+    } finally {
+      setGeneratingContent(null);
     }
   };
 
@@ -120,14 +169,25 @@ export default function BriefsPage() {
     idea => !briefs.some(brief => brief.idea_id === idea.id)
   );
 
+  // Get unique industries and personas from briefs
+  const uniqueIndustries = Array.from(new Set(briefs.map(b => b.industry).filter(Boolean))).sort();
+  const uniquePersonas = Array.from(new Set(briefs.map(b => b.persona).filter(Boolean))).sort();
+
+  // Filter briefs
+  const filteredBriefs = briefs.filter(brief => {
+    const matchIndustry = filterIndustry === 'all' || brief.industry === filterIndustry;
+    const matchPersona = filterPersona === 'all' || brief.persona === filterPersona;
+    return matchIndustry && matchPersona;
+  });
+
   if (loading) {
     return (
       <main className="min-h-screen p-6 md:p-10">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center py-20">
-            <div className="spinner w-12 h-12 border-4 mx-auto mb-4" />
-            <p className="text-midnight-400">Đang tải...</p>
-          </div>
+          <h1 className="font-display text-3xl md:text-5xl font-bold mb-8">
+            <span className="text-gradient">📝 Briefs</span>
+          </h1>
+          <TableSkeleton rows={5} />
         </div>
       </main>
     );
@@ -155,6 +215,110 @@ export default function BriefsPage() {
           <div className="mb-6 p-4 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400 animate-pulse">
             {successMessage}
           </div>
+        )}
+
+        {/* Filters */}
+        {(uniqueIndustries.length > 0 || uniquePersonas.length > 0) && (
+          <section className="mb-8 glass-card rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-midnight-100 mb-4">🔍 Bộ lọc</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Industry filter */}
+              {uniqueIndustries.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-midnight-300 mb-2">🏢 Ngành nghề</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setFilterIndustry('all')}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        filterIndustry === 'all'
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                      }`}
+                    >
+                      Tất cả ({briefs.length})
+                    </button>
+                    {uniqueIndustries.map((ind) => {
+                      const count = briefs.filter(b => b.industry === ind).length;
+                      return (
+                        <button
+                          key={ind}
+                          onClick={() => setFilterIndustry(ind)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            filterIndustry === ind
+                              ? 'bg-purple-600 text-white'
+                              : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                          }`}
+                        >
+                          {ind} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Persona filter */}
+              {uniquePersonas.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-midnight-300 mb-2">👤 Persona</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setFilterPersona('all')}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        filterPersona === 'all'
+                          ? 'bg-coral-600 text-white'
+                          : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                      }`}
+                    >
+                      Tất cả ({briefs.length})
+                    </button>
+                    {uniquePersonas.map((per) => {
+                      const count = briefs.filter(b => b.persona === per).length;
+                      return (
+                        <button
+                          key={per}
+                          onClick={() => setFilterPersona(per)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                            filterPersona === per
+                              ? 'bg-coral-600 text-white'
+                              : 'bg-midnight-800/50 text-midnight-400 hover:bg-midnight-700/50'
+                          }`}
+                        >
+                          {per} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Active filters summary */}
+            {(filterIndustry !== 'all' || filterPersona !== 'all') && (
+              <div className="flex items-center gap-2 flex-wrap p-3 bg-midnight-900/30 rounded-lg border border-midnight-700 mt-4">
+                <span className="text-sm text-midnight-300">Đang lọc:</span>
+                {filterIndustry !== 'all' && (
+                  <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
+                    Ngành: {filterIndustry}
+                  </span>
+                )}
+                {filterPersona !== 'all' && (
+                  <span className="px-2 py-1 bg-coral-500/20 text-coral-300 rounded text-xs">
+                    Persona: {filterPersona}
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setFilterIndustry('all');
+                    setFilterPersona('all');
+                  }}
+                  className="ml-auto px-3 py-1 bg-midnight-800 hover:bg-midnight-700 text-midnight-300 rounded text-xs transition-colors"
+                >
+                  Xóa bộ lọc
+                </button>
+              </div>
+            )}
+          </section>
         )}
 
         {/* Ideas without briefs - show buttons to create */}
@@ -194,11 +358,34 @@ export default function BriefsPage() {
 
         {/* Existing briefs */}
         <section>
-          <h2 className="text-xl font-semibold text-midnight-100 mb-4">
-            📋 Briefs đã tạo ({briefs.length})
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-midnight-100">
+              📋 Briefs đã tạo
+            </h2>
+            {briefs.length > 0 && (
+              <p className="text-midnight-300 text-sm">
+                Hiển thị <span className="font-semibold text-midnight-100">{filteredBriefs.length}</span> trong tổng số <span className="font-semibold text-midnight-100">{briefs.length}</span> briefs
+              </p>
+            )}
+          </div>
 
-          {briefs.length === 0 ? (
+          {filteredBriefs.length === 0 && briefs.length > 0 ? (
+            <div className="glass-card rounded-2xl p-12 text-center">
+              <div className="text-6xl mb-4">🔍</div>
+              <p className="text-midnight-400 mb-4">
+                Không tìm thấy briefs phù hợp với bộ lọc
+              </p>
+              <button
+                onClick={() => {
+                  setFilterIndustry('all');
+                  setFilterPersona('all');
+                }}
+                className="px-6 py-3 bg-midnight-800 hover:bg-midnight-700 text-midnight-200 font-semibold rounded-xl transition-all"
+              >
+                Xóa bộ lọc
+              </button>
+            </div>
+          ) : briefs.length === 0 ? (
             <div className="glass-card rounded-2xl p-12 text-center">
               <div className="text-6xl mb-4">📝</div>
               <p className="text-midnight-400 mb-4">
@@ -213,14 +400,14 @@ export default function BriefsPage() {
             </div>
           ) : (
             <div className="grid gap-4">
-              {briefs.map(brief => (
+              {filteredBriefs.map(brief => (
                 <div
                   key={brief.id}
                   className="glass-card p-6 rounded-xl hover:bg-midnight-900/40 transition-colors cursor-pointer"
                   onClick={() => setSelectedBrief(brief)}
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div>
+                    <div className="flex-1">
                       <h3 className="text-lg font-semibold text-midnight-100 mb-1">
                         {brief.title}
                       </h3>
@@ -228,15 +415,37 @@ export default function BriefsPage() {
                         {brief.target_audience}
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteBrief(brief.id);
-                      }}
-                      className="px-3 py-1 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-lg transition-all"
-                    >
-                      Xóa
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowContentOptions(brief.id);
+                        }}
+                        disabled={generatingContent === brief.id}
+                        className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {generatingContent === brief.id ? (
+                          <>
+                            <div className="spinner w-4 h-4 border-2" />
+                            <span>Đang tạo...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="w-4 h-4" />
+                            <span>Tạo Content</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteBrief(brief.id);
+                        }}
+                        className="px-3 py-2 text-sm bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 rounded-lg transition-all"
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid md:grid-cols-3 gap-4 text-sm">
@@ -336,6 +545,111 @@ export default function BriefsPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Content Options Modal */}
+        {showContentOptions !== null && (
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowContentOptions(null)}
+          >
+            <div
+              className="glass-card max-w-lg w-full p-8 rounded-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setShowContentOptions(null)}
+                className="float-right text-midnight-400 hover:text-midnight-200 text-2xl"
+              >
+                ×
+              </button>
+
+              <h2 className="text-2xl font-bold text-midnight-100 mb-6">
+                ⚙️ Tùy chỉnh Content
+              </h2>
+
+              <div className="space-y-6">
+                {/* Word Count */}
+                <div>
+                  <label className="block text-midnight-200 font-semibold mb-3">
+                    📊 Độ dài (số từ)
+                  </label>
+                  <input
+                    type="range"
+                    min="400"
+                    max="2000"
+                    step="100"
+                    value={contentOptions.wordCount}
+                    onChange={(e) => setContentOptions({ ...contentOptions, wordCount: parseInt(e.target.value) })}
+                    className="w-full h-2 bg-midnight-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                  <div className="flex justify-between text-sm text-midnight-400 mt-2">
+                    <span>400</span>
+                    <span className="text-blue-400 font-semibold">{contentOptions.wordCount} từ</span>
+                    <span>2000</span>
+                  </div>
+                </div>
+
+                {/* Style */}
+                <div>
+                  <label className="block text-midnight-200 font-semibold mb-3">
+                    🎨 Phong cách viết
+                  </label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={() => setContentOptions({ ...contentOptions, style: 'professional' })}
+                      className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                        contentOptions.style === 'professional'
+                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                      }`}
+                    >
+                      Chuyên nghiệp
+                    </button>
+                    <button
+                      onClick={() => setContentOptions({ ...contentOptions, style: 'casual' })}
+                      className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                        contentOptions.style === 'casual'
+                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                      }`}
+                    >
+                      Thân mật
+                    </button>
+                    <button
+                      onClick={() => setContentOptions({ ...contentOptions, style: 'academic' })}
+                      className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                        contentOptions.style === 'academic'
+                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                      }`}
+                    >
+                      Học thuật
+                    </button>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={() => handleGenerateContent(showContentOptions)}
+                  disabled={generatingContent !== null}
+                  className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {generatingContent !== null ? (
+                    <>
+                      <div className="spinner w-5 h-5 border-2" />
+                      <span>Đang tạo content...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-5 h-5" />
+                      <span>Tạo Content</span>
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           </div>

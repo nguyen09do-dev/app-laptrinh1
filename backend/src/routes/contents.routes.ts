@@ -17,4 +17,9 @@ export async function contentsRoutes(fastify: FastifyInstance) {
   fastify.delete('/contents/:id', {
     handler: contentsController.deleteContent.bind(contentsController),
   });
+
+  // Clean all existing contents (remove quotes, normalize formatting)
+  fastify.post('/contents/clean-all', {
+    handler: contentsController.cleanAllContents.bind(contentsController),
+  });
 }

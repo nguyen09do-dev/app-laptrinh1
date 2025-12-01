@@ -14,7 +14,7 @@ export default function Home() {
     <main className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="spinner mx-auto mb-4" />
-        <p className="text-midnight-400">Đang chuyển hướng...</p>
+        <p className="text-gray-400">Đang chuyển hướng...</p>
       </div>
     </main>
   );
