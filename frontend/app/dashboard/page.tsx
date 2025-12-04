@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Plus, Rocket, FileText, Package2, Share2, BarChart3, Zap, Settings, Layers } from 'lucide-react';
 import StatCard from '../components/StatCard';
 import WorkflowItem from '../components/WorkflowItem';
 import ToolCard from '../components/ToolCard';
 import ActivityItem from '../components/ActivityItem';
+import { useIdeas, useBriefs, useContents, useTimeline } from '../hooks/useApi';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 interface Idea {
   id: number;
@@ -36,13 +37,6 @@ interface Content {
   created_at: string;
 }
 
-interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  count?: number;
-}
-
 interface TimelineData {
   ideas: Array<{ date: string; count: string; approved: string }>;
   briefs: Array<{ date: string; count: string }>;
@@ -50,51 +44,29 @@ interface TimelineData {
 }
 
 export default function DashboardPage() {
-  const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [briefs, setBriefs] = useState<Brief[]>([]);
-  const [contents, setContents] = useState<Content[]>([]);
-  const [timeline, setTimeline] = useState<TimelineData | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Use SWR hooks for automatic caching and revalidation
+  const { ideas, isLoading: ideasLoading } = useIdeas();
+  const { briefs, isLoading: briefsLoading } = useBriefs();
+  const { contents, isLoading: contentsLoading } = useContents();
+  const { timeline, isLoading: timelineLoading } = useTimeline(7);
 
-  useEffect(() => {
-    fetchAllData();
-  }, []);
+  const loading = ideasLoading || briefsLoading || contentsLoading || timelineLoading;
 
-  const fetchAllData = async () => {
-    setLoading(true);
-    try {
-      const [ideasRes, briefsRes, contentsRes, timelineRes] = await Promise.all([
-        fetch('http://localhost:3001/api/ideas'),
-        fetch('http://localhost:3001/api/briefs'),
-        fetch('http://localhost:3001/api/contents'),
-        fetch('http://localhost:3001/api/analytics/timeline?days=7'),
-      ]);
-
-      const ideasData: ApiResponse<Idea[]> = await ideasRes.json();
-      const briefsData: ApiResponse<Brief[]> = await briefsRes.json();
-      const contentsData: ApiResponse<Content[]> = await contentsRes.json();
-      const timelineData: ApiResponse<TimelineData> = await timelineRes.json();
-
-      if (ideasData.success && ideasData.data) setIdeas(ideasData.data);
-      if (briefsData.success && briefsData.data) setBriefs(briefsData.data);
-      if (contentsData.success && contentsData.data) setContents(contentsData.data);
-      if (timelineData.success && timelineData.data) setTimeline(timelineData.data);
-    } catch (err) {
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Ensure ideas, briefs, contents are arrays with default values
+  const safeIdeas = Array.isArray(ideas) ? ideas : [];
+  const safeBriefs = Array.isArray(briefs) ? briefs : [];
+  const safeContents = Array.isArray(contents) ? contents : [];
+  const safeTimeline = timeline || { ideas: [], briefs: [], contents: [] };
 
   const stats = {
-    total: ideas.length,
-    generated: ideas.filter(i => i.status === 'generated').length,
-    shortlisted: ideas.filter(i => i.status === 'shortlisted').length,
-    approved: ideas.filter(i => i.status === 'approved').length,
-    archived: ideas.filter(i => i.status === 'archived').length,
+    total: safeIdeas.length,
+    generated: safeIdeas.filter(i => i.status === 'generated').length,
+    shortlisted: safeIdeas.filter(i => i.status === 'shortlisted').length,
+    approved: safeIdeas.filter(i => i.status === 'approved').length,
+    archived: safeIdeas.filter(i => i.status === 'archived').length,
   };
 
-  const batches = new Set(ideas.map(i => i.batch_id).filter(Boolean));
+  const batches = new Set(safeIdeas.map(i => i.batch_id).filter(Boolean));
   const batchCount = batches.size;
   const approvalRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
 
@@ -112,27 +84,27 @@ export default function DashboardPage() {
   };
 
   // Prepare chart data for KPI cards with formatted dates
-  const ideasChartData = timeline?.ideas?.map(item => ({
+  const ideasChartData = safeTimeline?.ideas?.map(item => ({
     date: formatChartDate(item.date),
     value: parseInt(item.count) || 0,
   })) || [];
 
-  const briefsChartData = timeline?.briefs?.map(item => ({
+  const briefsChartData = safeTimeline?.briefs?.map(item => ({
     date: formatChartDate(item.date),
     value: parseInt(item.count) || 0,
   })) || [];
 
-  const contentsChartData = timeline?.contents?.map(item => ({
+  const contentsChartData = safeTimeline?.contents?.map(item => ({
     date: formatChartDate(item.date),
     value: parseInt(item.count) || 0,
   })) || [];
 
   // Build workflow items
   const workflowItems = [];
-  
+
   // Find approved ideas without briefs
-  const approvedIdeasWithoutBriefs = ideas.filter(
-    idea => idea.status === 'approved' && !briefs.some(b => b.idea_id === idea.id)
+  const approvedIdeasWithoutBriefs = safeIdeas.filter(
+    idea => idea.status === 'approved' && !safeBriefs.some(b => b.idea_id === idea.id)
   );
   
   approvedIdeasWithoutBriefs.slice(0, 2).forEach(idea => {
@@ -148,10 +120,10 @@ export default function DashboardPage() {
   });
 
   // Find briefs without contents
-  const briefsWithoutContents = briefs.filter(
-    brief => !contents.some(c => c.brief_id === brief.id)
+  const briefsWithoutContents = safeBriefs.filter(
+    brief => !safeContents.some(c => c.brief_id === brief.id)
   );
-  
+
   briefsWithoutContents.slice(0, 2).forEach(brief => {
     workflowItems.push({
       id: brief.id,
@@ -165,7 +137,7 @@ export default function DashboardPage() {
   });
 
   // Find contents in draft
-  contents.filter(c => c.status === 'draft').slice(0, 1).forEach(content => {
+  safeContents.filter(c => c.status === 'draft').slice(0, 1).forEach(content => {
     workflowItems.push({
       id: content.id,
       stage: 'Optimize' as const,
@@ -179,9 +151,9 @@ export default function DashboardPage() {
 
   // Recent activity
   const recentActivities = [];
-  
+
   // Add recent ideas
-  ideas.slice(0, 2).forEach(idea => {
+  safeIdeas.slice(0, 2).forEach(idea => {
     const timeAgo = getTimeAgo(idea.created_at);
     recentActivities.push({
       time: timeAgo,
@@ -191,7 +163,7 @@ export default function DashboardPage() {
   });
 
   // Add recent briefs
-  briefs.slice(0, 1).forEach(brief => {
+  safeBriefs.slice(0, 1).forEach(brief => {
     const timeAgo = getTimeAgo(brief.created_at);
     recentActivities.push({
       time: timeAgo,
@@ -201,7 +173,7 @@ export default function DashboardPage() {
   });
 
   // Add recent contents
-  contents.slice(0, 1).forEach(content => {
+  safeContents.slice(0, 1).forEach(content => {
     const timeAgo = getTimeAgo(content.created_at);
     recentActivities.push({
       time: timeAgo,
@@ -221,6 +193,10 @@ export default function DashboardPage() {
     if (diffMins < 60) return `${diffMins}m`;
     if (diffHours < 24) return `${diffHours}h`;
     return `${diffDays}d`;
+  }
+
+  if (loading) {
+    return <LoadingSkeleton />;
   }
 
   return (
@@ -251,16 +227,9 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {loading ? (
-          <div className="text-center py-16">
-            <div className="spinner mx-auto mb-4" />
-            <p className="text-midnight-400">Đang tải dữ liệu...</p>
-          </div>
-        ) : (
-          <>
-            {/* KPI Cards with Mini Charts */}
-            <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <StatCard
+        {/* KPI Cards with Mini Charts */}
+        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <StatCard
                 title="Total Ideas"
                 value={stats.total}
                 deltaLabel={batchCount > 0 ? `From ${batchCount} batches` : undefined}
@@ -278,24 +247,24 @@ export default function DashboardPage() {
               />
               <StatCard
                 title="Briefs"
-                value={briefs.length}
-                deltaLabel={briefs.length > 0 ? `${briefs.filter(b => b.status === 'approved').length} approved` : undefined}
+                value={safeBriefs.length}
+                deltaLabel={safeBriefs.length > 0 ? `${safeBriefs.filter(b => b.status === 'approved').length} approved` : undefined}
                 chartData={briefsChartData}
                 borderColor="border-yellow-500"
                 icon="📝"
               />
               <StatCard
                 title="Contents"
-                value={contents.length}
-                deltaLabel={contents.length > 0 ? `${contents.filter(c => c.status === 'published').length} published` : undefined}
+                value={safeContents.length}
+                deltaLabel={safeContents.length > 0 ? `${safeContents.filter(c => c.status === 'published').length} published` : undefined}
                 chartData={contentsChartData}
                 borderColor="border-purple-500"
                 icon="✍️"
               />
-            </section>
+        </section>
 
-            {/* Workflow Tracking + Channel Performance */}
-            <section className="grid lg:grid-cols-3 gap-6 mb-8">
+        {/* Workflow Tracking + Channel Performance */}
+        <section className="grid lg:grid-cols-3 gap-6 mb-8">
               <div className="lg:col-span-2 glass-card rounded-2xl p-6">
                 <div className="flex items-center gap-2 mb-4">
                   <Layers className="h-5 w-5 text-midnight-300" />
@@ -370,7 +339,7 @@ export default function DashboardPage() {
                   title="Research Briefs"
                   desc="Create comprehensive research briefs"
                   icon={FileText}
-                  stat={briefs.length}
+                  stat={safeBriefs.length}
                   cta="New Brief"
                   href="/briefs"
                 />
@@ -378,7 +347,7 @@ export default function DashboardPage() {
                   title="Content"
                   desc="Draft and manage content"
                   icon={Package2}
-                  stat={contents.length}
+                  stat={safeContents.length}
                   cta="View Content"
                   href="/content"
                 />
@@ -399,10 +368,10 @@ export default function DashboardPage() {
                   href="/settings"
                 />
               </div>
-            </section>
+        </section>
 
-            {/* Recent Activity */}
-            <section className="glass-card rounded-2xl p-6">
+        {/* Recent Activity */}
+        <section className="glass-card rounded-2xl p-6">
               <h2 className="text-xl font-semibold text-midnight-100 mb-2">Recent Workflow Activity</h2>
               <p className="text-sm text-midnight-400 mb-4">
                 Latest actions across creation, optimization, and publishing.
@@ -418,9 +387,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
               )}
-            </section>
-          </>
-        )}
+        </section>
       </div>
     </main>
   );

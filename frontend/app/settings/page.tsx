@@ -279,9 +279,35 @@ export default function SettingsPage() {
                   onChange={(e) => updateSettings('content', 'defaultLanguage', e.target.value)}
                   className="w-full px-4 py-2 bg-midnight-900/50 border border-midnight-700 rounded-lg text-midnight-100 focus:outline-none focus:border-coral-500"
                 >
-                  <option value="vi">Tiếng Việt</option>
-                  <option value="en">English</option>
+                  <option value="vi">🇻🇳 Tiếng Việt</option>
+                  <option value="en">🇬🇧 English</option>
+                  <option value="vi-en">🌐 Bilingual (Vi + En)</option>
                 </select>
+                <p className="text-xs text-midnight-400 mt-1">
+                  Ngôn ngữ mặc định cho content generation
+                </p>
+              </div>
+
+              <div className="mt-6 p-4 bg-midnight-900/30 border border-midnight-700 rounded-lg">
+                <h3 className="text-md font-semibold text-midnight-100 mb-3">🔤 Language Features</h3>
+                <ul className="space-y-2 text-sm text-midnight-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400 mt-0.5">✓</span>
+                    <span><strong>Vietnamese Accent Normalization:</strong> Tìm kiếm không phân biệt dấu (ví dụ: "Tieng Viet" sẽ tìm được "Tiếng Việt")</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400 mt-0.5">✓</span>
+                    <span><strong>Smart Text Cleaning:</strong> Tự động làm sạch và chuẩn hóa văn bản tiếng Việt</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400 mt-0.5">✓</span>
+                    <span><strong>Bilingual Support:</strong> Hỗ trợ nội dung song ngữ Việt-Anh</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-400 mt-0.5">✓</span>
+                    <span><strong>URL-Friendly Slugs:</strong> Tự động chuyển đổi tiếng Việt thành slug không dấu</span>
+                  </li>
+                </ul>
               </div>
 
               <div>

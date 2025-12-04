@@ -3,9 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { useLanguage } from '@/app/contexts/LanguageContext';
+import { Languages } from 'lucide-react';
 
 export default function TopNav() {
   const pathname = usePathname();
+  const { language, setLanguage } = useLanguage();
 
   const navItems = [
     { name: 'Welcome', path: '/welcome' },
@@ -15,6 +18,12 @@ export default function TopNav() {
     { name: 'Content', path: '/content' },
     { name: 'Analytics', path: '/analytics' },
     { name: 'Settings', path: '/settings' },
+  ];
+
+  const languageOptions = [
+    { value: 'vi' as const, label: '🇻🇳 VN', fullLabel: 'Tiếng Việt' },
+    { value: 'en' as const, label: '🇬🇧 EN', fullLabel: 'English' },
+    { value: 'vi-en' as const, label: '🌐 Both', fullLabel: 'Bilingual' },
   ];
 
   return (
@@ -43,6 +52,25 @@ export default function TopNav() {
                 );
               })}
             </div>
+
+            {/* Language Selector */}
+            <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1">
+              {languageOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setLanguage(option.value)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    language === option.value
+                      ? 'bg-white text-blue-600 dark:text-midnight-700 shadow-md'
+                      : 'hover:bg-white/10 text-white/90'
+                  }`}
+                  title={option.fullLabel}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
             <ThemeToggle />
           </div>
         </div>

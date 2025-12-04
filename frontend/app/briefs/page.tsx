@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { showToast } from '@/lib/toast';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
-import { FileText } from 'lucide-react';
+import { FileText, LayoutGrid, Table2 } from 'lucide-react';
+
+// Lazy load table view for better performance
+const BriefsTableView = lazy(() => import('../components/BriefsTableView'));
 
 interface Brief {
   id: number;
@@ -40,14 +44,13 @@ interface Idea {
   status: string;
 }
 
+// SWR fetcher
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
 export default function BriefsPage() {
   const router = useRouter();
-  const [briefs, setBriefs] = useState<Brief[]>([]);
-  const [approvedIdeas, setApprovedIdeas] = useState<Idea[]>([]);
-  const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<number | null>(null);
   const [generatingContent, setGeneratingContent] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [selectedBrief, setSelectedBrief] = useState<Brief | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showContentOptions, setShowContentOptions] = useState<number | null>(null);
@@ -57,39 +60,34 @@ export default function BriefsPage() {
   });
   const [filterIndustry, setFilterIndustry] = useState<string>('all');
   const [filterPersona, setFilterPersona] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch briefs
-      const briefsRes = await fetch('http://localhost:3001/api/briefs');
-      const briefsData = await briefsRes.json();
-
-      // Fetch approved ideas (để show nút "Tạo Brief")
-      const ideasRes = await fetch('http://localhost:3001/api/ideas');
-      const ideasData = await ideasRes.json();
-      const approved = ideasData.data.filter((idea: Idea) => idea.status === 'approved');
-
-      setBriefs(briefsData.data || []);
-      setApprovedIdeas(approved || []);
-    } catch (err) {
-      console.error('Error fetching data:', err);
-      showToast.error('Không thể tải dữ liệu');
-      setError('Không thể tải dữ liệu');
-    } finally {
-      setLoading(false);
+  // Use SWR for data fetching with caching
+  const { data: briefsData, error: briefsError, mutate: mutateBriefs } = useSWR(
+    'http://localhost:3001/api/briefs',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
     }
-  };
+  );
+
+  const { data: ideasData, error: ideasError } = useSWR(
+    'http://localhost:3001/api/ideas',
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+    }
+  );
+
+  const briefs = briefsData?.data || [];
+  const approvedIdeas = ideasData?.data?.filter((idea: Idea) => idea.status === 'approved') || [];
+  const loading = !briefsData && !briefsError;
+  const error = briefsError || ideasError;
 
   const handleCreateBrief = async (ideaId: number) => {
     setCreating(ideaId);
-    setError(null);
 
     try {
       const res = await fetch(`http://localhost:3001/api/briefs/from-idea/${ideaId}`, {
@@ -99,17 +97,15 @@ export default function BriefsPage() {
       const data = await res.json();
 
       if (data.success) {
-        await fetchData(); // Refresh data
+        await mutateBriefs(); // Refresh briefs data using SWR
         showToast.success('Đã tạo brief thành công!');
         setSuccessMessage(null);
       } else {
         showToast.error(data.error || 'Không thể tạo brief');
-        setError(data.error || 'Không thể tạo brief');
       }
     } catch (err) {
       console.error('Error creating brief:', err);
       showToast.error('Không thể tạo brief');
-      setError('Không thể tạo brief');
     } finally {
       setCreating(null);
     }
@@ -157,10 +153,12 @@ export default function BriefsPage() {
       });
 
       if (res.ok) {
-        await fetchData();
+        await mutateBriefs(); // Refresh briefs data using SWR
+        showToast.success('Đã xóa brief thành công!');
       }
     } catch (err) {
       console.error('Error deleting brief:', err);
+      showToast.error('Không thể xóa brief');
     }
   };
 
@@ -362,11 +360,38 @@ export default function BriefsPage() {
             <h2 className="text-xl font-semibold text-midnight-100">
               📋 Briefs đã tạo
             </h2>
-            {briefs.length > 0 && (
-              <p className="text-midnight-300 text-sm">
-                Hiển thị <span className="font-semibold text-midnight-100">{filteredBriefs.length}</span> trong tổng số <span className="font-semibold text-midnight-100">{briefs.length}</span> briefs
-              </p>
-            )}
+            <div className="flex items-center gap-4">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-2 bg-midnight-800/50 rounded-lg p-1">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-purple-600 text-white'
+                      : 'text-midnight-400 hover:text-midnight-200'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                  Grid
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                    viewMode === 'table'
+                      ? 'bg-purple-600 text-white'
+                      : 'text-midnight-400 hover:text-midnight-200'
+                  }`}
+                >
+                  <Table2 className="w-4 h-4" />
+                  Table
+                </button>
+              </div>
+              {briefs.length > 0 && (
+                <p className="text-midnight-300 text-sm">
+                  Hiển thị <span className="font-semibold text-midnight-100">{filteredBriefs.length}</span> trong tổng số <span className="font-semibold text-midnight-100">{briefs.length}</span> briefs
+                </p>
+              )}
+            </div>
           </div>
 
           {filteredBriefs.length === 0 && briefs.length > 0 ? (
@@ -398,7 +423,7 @@ export default function BriefsPage() {
                 ← Quay lại Ideas
               </Link>
             </div>
-          ) : (
+          ) : viewMode === 'grid' ? (
             <div className="grid gap-4">
               {filteredBriefs.map(brief => (
                 <div
@@ -465,6 +490,16 @@ export default function BriefsPage() {
                 </div>
               ))}
             </div>
+          ) : (
+            <Suspense fallback={<TableSkeleton />}>
+              <BriefsTableView
+                briefs={filteredBriefs}
+                onView={setSelectedBrief}
+                onDelete={handleDeleteBrief}
+                onGenerateContent={(id) => setShowContentOptions(id)}
+                generatingContent={generatingContent}
+              />
+            </Suspense>
           )}
         </section>
 

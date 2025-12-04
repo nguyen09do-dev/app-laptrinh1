@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import FlowmapVisual from '../components/FlowmapVisual';
+import IdeasTableView from '../components/IdeasTableView';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
-import { Lightbulb, Search, Filter } from 'lucide-react';
+import { Lightbulb, Search, Filter, LayoutGrid, Table2 } from 'lucide-react';
 
 interface Idea {
   id: number;
@@ -66,6 +67,7 @@ export default function IdeasPage() {
   const [filterPersona, setFilterPersona] = useState<string>('all');
   const [generatingImplementation, setGeneratingImplementation] = useState(false);
   const [creatingBrief, setCreatingBrief] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Form state - CHỈ CÓ 2 TRƯỜNG
   const [persona, setPersona] = useState('');
@@ -640,8 +642,39 @@ export default function IdeasPage() {
           )}
         </section>
 
-        {/* Ideas List */}
+        {/* View Toggle & Ideas List */}
         <section>
+          {/* View Toggle Buttons */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-midnight-100">
+              📋 Danh sách Ideas ({filteredIdeas.length})
+            </h2>
+            <div className="flex items-center gap-2 glass-card rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2 ${
+                  viewMode === 'grid'
+                    ? 'bg-gradient-to-r from-midnight-500 to-coral-500 text-white shadow-lg'
+                    : 'text-midnight-400 hover:text-midnight-200'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                Grid
+              </button>
+              <button
+                onClick={() => setViewMode('table')}
+                className={`px-4 py-2 rounded-md font-medium transition-all flex items-center gap-2 ${
+                  viewMode === 'table'
+                    ? 'bg-gradient-to-r from-midnight-500 to-coral-500 text-white shadow-lg'
+                    : 'text-midnight-400 hover:text-midnight-200'
+                }`}
+              >
+                <Table2 className="w-4 h-4" />
+                Table
+              </button>
+            </div>
+          </div>
+
           {loading && ideas.length === 0 && (
             <TableSkeleton rows={5} />
           )}
@@ -677,34 +710,45 @@ export default function IdeasPage() {
                   Hiển thị <span className="font-semibold text-midnight-100">{filteredIdeas.length}</span> trong tổng số <span className="font-semibold text-midnight-100">{ideas.length}</span> ideas
                 </p>
               </div>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredIdeas.map((idea) => (
-                <article
-                  key={idea.id}
-                  onClick={() => setSelectedIdea(idea)}
-                  className="glass-card rounded-xl p-5 cursor-pointer hover:border-midnight-500 transition-all duration-200 hover:scale-[1.02]"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    {getStatusBadge(idea.status)}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(idea.id); }}
-                      className="text-midnight-500 hover:text-coral-400 transition-colors p-1"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                  <h3 className="font-semibold text-midnight-100 mb-2 line-clamp-2">{idea.title}</h3>
-                  <p className="text-sm text-midnight-400 mb-3 line-clamp-3">{idea.description}</p>
-                  <div className="text-xs text-mint-400/70 mb-2">👆 Click để xem chi tiết</div>
-                  <div className="flex flex-wrap gap-2 text-xs text-midnight-500 pt-3 border-t border-midnight-800">
-                    <span className="bg-midnight-800/50 px-2 py-1 rounded">👤 {idea.persona}</span>
-                    <span className="bg-midnight-800/50 px-2 py-1 rounded">🏢 {idea.industry}</span>
-                  </div>
-                </article>
-              ))}
-              </div>
+
+              {viewMode === 'grid' ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredIdeas.map((idea) => (
+                  <article
+                    key={idea.id}
+                    onClick={() => setSelectedIdea(idea)}
+                    className="glass-card rounded-xl p-5 cursor-pointer hover:border-midnight-500 transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      {getStatusBadge(idea.status)}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(idea.id); }}
+                        className="text-midnight-500 hover:text-coral-400 transition-colors p-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <h3 className="font-semibold text-midnight-100 mb-2 line-clamp-2">{idea.title}</h3>
+                    <p className="text-sm text-midnight-400 mb-3 line-clamp-3">{idea.description}</p>
+                    <div className="text-xs text-mint-400/70 mb-2">👆 Click để xem chi tiết</div>
+                    <div className="flex flex-wrap gap-2 text-xs text-midnight-500 pt-3 border-t border-midnight-800">
+                      <span className="bg-midnight-800/50 px-2 py-1 rounded">👤 {idea.persona}</span>
+                      <span className="bg-midnight-800/50 px-2 py-1 rounded">🏢 {idea.industry}</span>
+                    </div>
+                  </article>
+                ))}
+                </div>
+              ) : (
+                <IdeasTableView
+                  ideas={filteredIdeas}
+                  onView={setSelectedIdea}
+                  onDelete={handleDelete}
+                  onCreateBrief={handleCreateBrief}
+                  creatingBrief={creatingBrief}
+                />
+              )}
             </>
           )}
         </section>

@@ -3,6 +3,7 @@ import './globals.css';
 import TopNav from './components/TopNav';
 import DynamicBackground from './components/DynamicBackground';
 import { BackgroundProvider } from './contexts/BackgroundContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastProvider } from '@/components/ui/toast-provider';
 
@@ -25,18 +26,24 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          <BackgroundProvider>
-            <DynamicBackground />
+          <LanguageProvider>
+            <BackgroundProvider>
+              <DynamicBackground />
 
-            <TopNav />
-            {children}
-            <ToastProvider />
-          </BackgroundProvider>
+              <TopNav />
+              {children}
+              <ToastProvider />
+            </BackgroundProvider>
+          </LanguageProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
+
+
+
+
 
 
 
