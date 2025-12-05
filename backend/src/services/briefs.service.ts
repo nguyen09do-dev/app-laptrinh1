@@ -24,6 +24,24 @@ export interface Brief {
  */
 export class BriefsService {
   /**
+   * Parse brief data from database
+   */
+  private parseBrief(row: any): Brief {
+    return {
+      ...row,
+      key_messages: typeof row.key_messages === 'string'
+        ? JSON.parse(row.key_messages)
+        : row.key_messages,
+      seo_keywords: typeof row.seo_keywords === 'string'
+        ? JSON.parse(row.seo_keywords)
+        : row.seo_keywords,
+      content_structure: typeof row.content_structure === 'string'
+        ? JSON.parse(row.content_structure)
+        : row.content_structure
+    };
+  }
+
+  /**
    * Get all briefs
    */
   async getAllBriefs(): Promise<Brief[]> {
@@ -36,7 +54,7 @@ export class BriefsService {
       JOIN ideas i ON b.idea_id = i.id
       ORDER BY b.created_at DESC
     `);
-    return result.rows;
+    return result.rows.map(row => this.parseBrief(row));
   }
 
   /**
@@ -44,7 +62,7 @@ export class BriefsService {
    */
   async getBriefById(id: number): Promise<Brief | null> {
     const result = await db.query('SELECT * FROM briefs WHERE id = $1', [id]);
-    return result.rows[0] || null;
+    return result.rows[0] ? this.parseBrief(result.rows[0]) : null;
   }
 
   /**
@@ -153,6 +171,19 @@ export class BriefsService {
   async deleteBrief(id: number): Promise<boolean> {
     const result = await db.query('DELETE FROM briefs WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
+  }
+
+  /**
+   * Delete many briefs
+   */
+  async deleteManyBriefs(ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const result = await db.query(
+      'DELETE FROM briefs WHERE id = ANY($1::int[])',
+      [ids]
+    );
+    return result.rowCount ?? 0;
   }
 }
 

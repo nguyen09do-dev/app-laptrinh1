@@ -72,12 +72,18 @@ export function validateGeneratedIdeas(data: unknown): {
 
 /**
  * Schema cho request body của POST /api/ideas/generate
+ * FIX: Thêm count, provider, model, language vào schema
+ * để không bị strip bởi additionalProperties: false
  */
 export const generateRequestSchema = {
   type: 'object',
   properties: {
     persona: { type: 'string', minLength: 1 },
     industry: { type: 'string', minLength: 1 },
+    count: { type: 'number', minimum: 1, maximum: 100 },
+    provider: { type: 'string' },
+    model: { type: 'string' },
+    language: { type: 'string' },
   },
   required: ['persona', 'industry'],
   additionalProperties: false,

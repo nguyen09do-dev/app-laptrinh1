@@ -77,6 +77,26 @@ export async function ideasRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * POST /api/ideas/bulk-delete
+   * Xóa nhiều ideas cùng lúc
+   */
+  fastify.post('/ideas/bulk-delete', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          ids: {
+            type: 'array',
+            items: { type: 'number' },
+          },
+        },
+        required: ['ids'],
+      },
+    },
+    handler: ideasController.bulkDeleteIdeas.bind(ideasController),
+  });
+
+  /**
    * PATCH /api/ideas/:id/status
    * Cập nhật status của idea
    */

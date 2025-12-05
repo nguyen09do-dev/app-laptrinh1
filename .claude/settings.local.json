@@ -46,7 +46,13 @@
       "Bash(start http://localhost:3000/dashboard)",
       "Bash(git commit -m \"$(cat <<''EOF''\nAdd dynamic background theme system with Aurora Borealis, Deep Ocean, and Sunset Gradient\n\nMajor Features:\n- Implement background theme system with 3 beautiful themes (Aurora Borealis, Deep Ocean, Sunset Gradient)\n- Add Appearance tab in Settings to switch themes\n- Create Welcome landing page with modern UI\n- Add Background Preview page with 15+ background options\n- Improve content generation with enhanced prompts and full 3-section structure\n- Add persona and industry context to content generation\n\nBackend Improvements:\n- Enhanced content generation prompt with detailed structure requirements\n- Add style options (professional, casual, academic) for content generation\n- Implement content cleaning functions for quotation marks and formatting\n- Add cleanAllContents endpoint to clean existing content\n- Include persona and industry data in content queries\n- Improve error handling and model fallback logic\n\nFrontend Improvements:\n- Create dynamic background system with context and provider\n- Add 3 theme components: BackgroundAurora, BackgroundOcean, BackgroundSunset\n- Implement theme switcher in Settings with live preview cards\n- Add Welcome page with hero section, features, stats, and CTAs\n- Create Background Preview page to explore 15+ background designs\n- Add Welcome link to TopNav navigation\n- Remove hardcoded backgrounds from Welcome and Content pages\n- Update all pages to use dynamic background system\n\nUI/UX Enhancements:\n- Aurora Borealis: Emerald-purple-cyan northern lights effect\n- Deep Ocean: Cyan light rays and bubbles in deep blue gradient\n- Sunset Gradient: Warm orange-pink sunset with cloud layers\n- Theme preference saved to localStorage\n- Instant theme switching without page reload\n- Consistent theming across all app pages\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
       "Bash(git push:*)",
-      "Bash(start:*)"
+      "Bash(start:*)",
+      "Bash(git commit:*)",
+      "Bash(git log:*)",
+      "Bash(node -e:*)",
+      "Bash(if exist \".next\" rmdir /s /q \".next\")",
+      "Bash(if exist \"G:\\Code01-HWAIcontentmulti\\frontend\\.next\" rmdir /s /q \"G:\\Code01-HWAIcontentmulti\\frontend\\.next\")",
+      "Bash(if exist \"node_modules\\.cache\" rmdir /s /q \"node_modules\\.cache\")"
     ],
     "deny": [],
     "ask": []

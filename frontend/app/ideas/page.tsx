@@ -6,7 +6,8 @@ import IdeasTableView from '../components/IdeasTableView';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
-import { Lightbulb, Search, Filter, LayoutGrid, Table2 } from 'lucide-react';
+import { bulkDeleteIdeas } from '@/lib/bulkDelete';
+import { Lightbulb, Search, Filter, LayoutGrid, Table2, Trash2 } from 'lucide-react';
 
 interface Idea {
   id: number;
@@ -69,11 +70,25 @@ export default function IdeasPage() {
   const [creatingBrief, setCreatingBrief] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  // Form state - CHỈ CÓ 2 TRƯỜNG
+  // Bulk delete state
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // Form state - QUANTITY STATE IS CRITICAL!
   const [persona, setPersona] = useState('');
   const [industry, setIndustry] = useState('');
+  const [quantity, setQuantity] = useState<number>(5); // IMPORTANT: Default 5 ideas - v2025-12-05
   const [showIndustrySuggestions, setShowIndustrySuggestions] = useState(false);
   const [showPersonaSuggestions, setShowPersonaSuggestions] = useState(false);
+
+  // VERIFY quantity is loaded - CRITICAL DEBUG v3
+  console.log('');
+  console.log('═════════════════════════════════════════════════');
+  console.log('🚀 IDEAS PAGE LOADED - VERSION: 2025-12-05-v4-FINAL');
+  console.log('═════════════════════════════════════════════════');
+  console.log('🔧 Component loaded - quantity initial state:', quantity);
+  console.log('🔧 TIMESTAMP:', new Date().toISOString());
+  console.log('═════════════════════════════════════════════════');
 
   const fetchIdeas = async () => {
     setLoading(true);
@@ -101,6 +116,12 @@ export default function IdeasPage() {
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    console.log('🚨 DEBUG START 🚨');
+    console.log('quantity state =', quantity);
+    console.log('typeof quantity =', typeof quantity);
+    console.log('Is quantity undefined?', quantity === undefined);
+    console.log('Is quantity null?', quantity === null);
+
     if (!persona.trim() || !industry.trim()) {
       setError('Vui lòng nhập đầy đủ Persona và Industry');
       return;
@@ -110,13 +131,19 @@ export default function IdeasPage() {
     setError(null);
 
     try {
+      const requestBody = {
+        persona: persona.trim(),
+        industry: industry.trim(),
+        count: quantity || 5 // Fallback to 5 if undefined
+      };
+      console.log('Request body BEFORE stringify =', requestBody);
+      console.log('Request body AFTER stringify =', JSON.stringify(requestBody));
+      console.log('🚨 DEBUG END 🚨');
+
       const response = await fetch('http://localhost:3001/api/ideas/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          persona: persona.trim(),
-          industry: industry.trim()
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const result: ApiResponse<Idea[]> = await response.json();
@@ -126,7 +153,7 @@ export default function IdeasPage() {
         setPersona('');
         setIndustry('');
         setError(null);
-        showToast.success('Đã tạo 10 ideas mới thành công!');
+        showToast.success(`Đã tạo ${quantity} ideas mới thành công!`);
       } else {
         showToast.error(result.error || 'Không thể tạo ideas');
         setError(result.error || 'Failed to generate ideas');
@@ -253,12 +280,64 @@ export default function IdeasPage() {
       if (result.success) {
         setIdeas((prev) => prev.filter((idea) => idea.id !== id));
         if (selectedIdea?.id === id) setSelectedIdea(null);
+        showToast.success('Đã xóa idea thành công');
       } else {
         setError(result.error || 'Failed to delete idea');
+        showToast.error(result.error || 'Không thể xóa idea');
       }
     } catch (err) {
       console.error('Delete error:', err);
       setError('Không thể xóa idea');
+      showToast.error('Không thể xóa idea');
+    }
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      showToast.error('Vui lòng chọn ít nhất 1 idea để xóa');
+      return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn xóa ${selectedIds.length} idea(s)?`)) return;
+
+    setBulkDeleting(true);
+    try {
+      const result = await bulkDeleteIdeas(selectedIds);
+
+      if (result.success) {
+        showToast.success(`Đã xóa ${result.deletedCount} idea(s) thành công`);
+        setSelectedIds([]);
+        await fetchIdeas();
+        if (selectedIdea && selectedIds.includes(selectedIdea.id)) {
+          setSelectedIdea(null);
+        }
+      } else {
+        showToast.error(result.error || 'Không thể xóa ideas');
+      }
+    } catch (err) {
+      console.error('Bulk delete error:', err);
+      showToast.error('Không thể xóa ideas');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  // Toggle select idea
+  const handleToggleSelect = (id: number) => {
+    setSelectedIds(prev =>
+      prev.includes(id)
+        ? prev.filter(i => i !== id)
+        : [...prev, id]
+    );
+  };
+
+  // Select all / deselect all
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === filteredIdeas.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredIdeas.map(idea => idea.id));
     }
   };
 
@@ -375,10 +454,10 @@ export default function IdeasPage() {
           </div>
         </section>
 
-        {/* Form đơn giản - CHỈ 2 TRƯỜNG */}
+        {/* Form đơn giản - CHỈ 2 TRƯỜNG + QUANTITY */}
         <section className="mb-8">
           <form onSubmit={handleGenerate} className="glass-card rounded-2xl p-6 md:p-8">
-            <h2 className="text-xl font-semibold mb-6 text-midnight-100">✨ Tạo 10 Ideas Mới</h2>
+            <h2 className="text-xl font-semibold mb-6 text-midnight-100">✨ Tạo Ideas Mới</h2>
 
             <div className="grid md:grid-cols-2 gap-4 mb-6">
               <div className="relative">
@@ -451,6 +530,45 @@ export default function IdeasPage() {
               </div>
             </div>
 
+            {/* Quantity Selector */}
+            <div className="mb-6">
+              <label htmlFor="quantity" className="block text-sm font-medium text-midnight-300 mb-3">
+                Số lượng Ideas muốn tạo: <span className="text-coral-400 text-lg font-bold">{quantity}</span>
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  id="quantity"
+                  min="1"
+                  max="10"
+                  value={quantity}
+                  onChange={(e) => setQuantity(parseInt(e.target.value))}
+                  className="flex-1 h-2 bg-midnight-800 rounded-lg appearance-none cursor-pointer accent-coral-500"
+                  disabled={generating}
+                />
+                <div className="flex gap-2">
+                  {[1, 3, 5, 7, 10].map((num) => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => setQuantity(num)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        quantity === num
+                          ? 'bg-coral-500 text-white'
+                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                      }`}
+                      disabled={generating}
+                    >
+                      {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-midnight-400 mt-2">
+                💡 Tip: Tạo ít hơn sẽ nhanh hơn. Max 10 ideas mỗi lần.
+              </p>
+            </div>
+
             <button
               type="submit"
               disabled={generating || !persona.trim() || !industry.trim()}
@@ -459,12 +577,12 @@ export default function IdeasPage() {
               {generating ? (
                 <>
                   <div className="spinner w-5 h-5 border-2" />
-                  <span>Đang tạo ideas...</span>
+                  <span>Đang tạo {quantity} ideas...</span>
                 </>
               ) : (
                 <>
                   <span className="text-xl">🚀</span>
-                  <span>Generate 10 Ideas (Miễn phí với Gemini)</span>
+                  <span>Generate {quantity} Ideas (Miễn phí với Gemini)</span>
                 </>
               )}
             </button>
@@ -476,6 +594,40 @@ export default function IdeasPage() {
           <div className="mb-8 p-4 bg-coral-500/10 border border-coral-500/30 rounded-xl text-coral-400 text-center">
             <span className="font-medium">⚠️ Lỗi: </span>
             {error}
+          </div>
+        )}
+
+        {/* Bulk Actions Bar */}
+        {selectedIds.length > 0 && (
+          <div className="mb-4 p-4 bg-midnight-800/80 border border-midnight-600 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === filteredIdeas.length && filteredIdeas.length > 0}
+                onChange={handleToggleSelectAll}
+                className="w-5 h-5 rounded border-midnight-500 text-ocean-400 focus:ring-ocean-500"
+              />
+              <span className="text-midnight-200">
+                Đã chọn <strong>{selectedIds.length}</strong> idea(s)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedIds([])}
+                className="px-4 py-2 text-midnight-400 hover:text-midnight-200 transition-colors"
+              >
+                Bỏ chọn
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="px-4 py-2 bg-coral-500 hover:bg-coral-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <Trash2 size={18} />
+                {bulkDeleting ? 'Đang xóa...' : `Xóa ${selectedIds.length} item(s)`}
+              </button>
+            </div>
           </div>
         )}
 
@@ -646,9 +798,18 @@ export default function IdeasPage() {
         <section>
           {/* View Toggle Buttons */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-midnight-100">
-              📋 Danh sách Ideas ({filteredIdeas.length})
-            </h2>
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === filteredIdeas.length && filteredIdeas.length > 0}
+                onChange={handleToggleSelectAll}
+                className="w-5 h-5 rounded border-midnight-500 text-ocean-400 focus:ring-ocean-500"
+                title="Select all"
+              />
+              <h2 className="text-xl font-semibold text-midnight-100">
+                📋 Danh sách Ideas ({filteredIdeas.length})
+              </h2>
+            </div>
             <div className="flex items-center gap-2 glass-card rounded-lg p-1">
               <button
                 onClick={() => setViewMode('grid')}
@@ -717,9 +878,23 @@ export default function IdeasPage() {
                   <article
                     key={idea.id}
                     onClick={() => setSelectedIdea(idea)}
-                    className="glass-card rounded-xl p-5 cursor-pointer hover:border-midnight-500 transition-all duration-200 hover:scale-[1.02]"
+                    className="glass-card rounded-xl p-5 cursor-pointer hover:border-midnight-500 transition-all duration-200 hover:scale-[1.02] relative"
                   >
-                    <div className="flex items-start justify-between mb-3">
+                    {/* Checkbox - Top Left Corner */}
+                    <div className="absolute top-3 left-3 z-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(idea.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleToggleSelect(idea.id);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-5 h-5 rounded border-midnight-500 text-ocean-400 focus:ring-ocean-500 cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="flex items-start justify-between mb-3 ml-8">
                       {getStatusBadge(idea.status)}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(idea.id); }}
@@ -743,6 +918,9 @@ export default function IdeasPage() {
               ) : (
                 <IdeasTableView
                   ideas={filteredIdeas}
+                  selectedIds={selectedIds}
+                  onToggleSelect={handleToggleSelect}
+                  onToggleSelectAll={handleToggleSelectAll}
                   onView={setSelectedIdea}
                   onDelete={handleDelete}
                   onCreateBrief={handleCreateBrief}

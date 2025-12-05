@@ -18,6 +18,9 @@ interface Idea {
 
 interface IdeasTableViewProps {
   ideas: Idea[];
+  selectedIds: number[];
+  onToggleSelect: (id: number) => void;
+  onToggleSelectAll: () => void;
   onView: (idea: Idea) => void;
   onDelete: (id: number) => void;
   onCreateBrief: (id: number) => void;
@@ -26,6 +29,9 @@ interface IdeasTableViewProps {
 
 export default function IdeasTableView({
   ideas,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
   onView,
   onDelete,
   onCreateBrief,
@@ -123,6 +129,14 @@ export default function IdeasTableView({
       <table className="w-full min-w-[1200px]">
         <thead>
           <tr className="border-b border-white/10 bg-white/5">
+            <th className="px-4 py-4 text-left w-12">
+              <input
+                type="checkbox"
+                checked={selectedIds.length === ideas.length && ideas.length > 0}
+                onChange={onToggleSelectAll}
+                className="w-5 h-5 rounded border-midnight-500 text-ocean-400 focus:ring-ocean-500 cursor-pointer"
+              />
+            </th>
             <th className="px-4 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider w-16">
               <button
                 onClick={() => handleSort('id')}
@@ -185,6 +199,14 @@ export default function IdeasTableView({
               key={idea.id}
               className="hover:bg-white/5 transition-colors group"
             >
+              <td className="px-4 py-4 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.includes(idea.id)}
+                  onChange={() => onToggleSelect(idea.id)}
+                  className="w-5 h-5 rounded border-midnight-500 text-ocean-400 focus:ring-ocean-500 cursor-pointer"
+                />
+              </td>
               <td className="px-4 py-4 whitespace-nowrap">
                 <span className="text-base font-mono text-gray-400">#{idea.id}</span>
               </td>

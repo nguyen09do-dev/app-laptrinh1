@@ -75,4 +75,24 @@ export async function briefsRoutes(fastify: FastifyInstance) {
     },
     handler: briefsController.deleteBrief.bind(briefsController),
   });
+
+  /**
+   * POST /api/briefs/bulk-delete
+   * Delete many briefs
+   */
+  fastify.post('/briefs/bulk-delete', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          ids: {
+            type: 'array',
+            items: { type: 'number' },
+          },
+        },
+        required: ['ids'],
+      },
+    },
+    handler: briefsController.bulkDeleteBriefs.bind(briefsController),
+  });
 }

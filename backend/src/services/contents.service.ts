@@ -70,7 +70,7 @@ export class ContentsService {
     };
 
     // Enhanced prompt for professional, creative content
-    const prompt = `Bạn là một chuyên gia viết content chuyên nghiệp. Hãy viết một bài essay HOÀN CHỈNH bằng tiếng Việt về: "${brief.title}"
+    const prompt = `Viết bài essay bằng tiếng Việt về: "${brief.title}"
 
 MỤC TIÊU: ${brief.objective}
 ĐỐI TƯỢNG: ${brief.target_audience}
@@ -78,50 +78,26 @@ MỤC TIÊU: ${brief.objective}
 YÊU CẦU:
 1. Phong cách: ${styleInstructions[style as keyof typeof styleInstructions] || styleInstructions.professional}
 
-2. CẤU TRÚC BẮT BUỘC (PHẢI ĐẦY ĐỦ CẢ 3 PHẦN):
-
-   ## MỞ ĐẦU (${Math.floor(targetWordCount * 0.2)}-${Math.floor(targetWordCount * 0.25)} từ)
-   - Câu mở đầu hấp dẫn (hook) để thu hút người đọc
-   - Giới thiệu bối cảnh, vấn đề cần bàn
-   - Nêu rõ luận điểm chính của bài viết
-   - Làm người đọc hiểu TẠI SAO chủ đề này quan trọng
-
-   ## THÂN BÀI (${Math.floor(targetWordCount * 0.55)}-${Math.floor(targetWordCount * 0.65)} từ - PHẦN DÀI NHẤT)
-   Viết 3-4 đoạn văn chi tiết, mỗi đoạn:
-   - Bắt đầu với một luận điểm rõ ràng
-   - Cung cấp dẫn chứng cụ thể (số liệu, nghiên cứu, ví dụ thực tế)
-   - Phân tích sâu, giải thích tại sao dẫn chứng này hỗ trợ luận điểm
-   - Kết nối với luận điểm chính của bài
-
-   LƯU Ý: Viết tự nhiên, KHÔNG dùng label như "Statement:", "Evidence:", "Explanation:"
-   ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT - cần viết dài, chi tiết và phong phú
-
-   ## KẾT LUẬN (${Math.floor(targetWordCount * 0.15)}-${Math.floor(targetWordCount * 0.2)} từ)
-   - Tóm tắt các điểm chính đã trình bày ở THÂN BÀI
-   - Nhấn mạnh lại luận điểm chính
-   - Đưa ra hàm ý, ý nghĩa thực tiễn
-   - Triển vọng tương lai hoặc lời kêu gọi hành động
+2. Cấu trúc nội dung:
+   - MỞ ĐẦU: Hook hấp dẫn + Background + Luận điểm chính
+   - THÂN BÀI: 3-4 đoạn văn, mỗi đoạn tự nhiên kết hợp:
+     * Luận điểm rõ ràng
+     * Dẫn chứng cụ thể (số liệu, nghiên cứu, ví dụ thực tế)
+     * Giải thích và phân tích sâu
+     KHÔNG dùng label như "Statement:", "Evidence:", "Explanation:" - chỉ viết tự nhiên
+   - KẾT LUẬN: Tóm tắt điểm chính + Hàm ý và triển vọng
 
 3. Định dạng và trình bày:
-   - BẮT BUỘC phải có đủ 3 phần với đúng tỷ lệ độ dài
-   - Sử dụng icon/emoji hợp lý (1-2 icon mỗi phần) để làm nổi bật
-   - Dùng bullet points (•) hoặc numbering (1., 2., 3.) khi liệt kê
+   - Sử dụng icon/emoji hợp lý (1-3 icon) để làm nổi bật các phần quan trọng, tránh lạm dụng
+   - Dùng bullet points (•) hoặc numbering (1., 2., 3.) khi liệt kê các điểm, khái niệm, hoặc bước
+   - Có thể dùng heading (##) để phân chia các phần lớn nếu cần
    - Kết hợp đoạn văn và danh sách một cách tự nhiên
-   - QUAN TRỌNG: Tránh sử dụng quá nhiều dấu ngoặc kép ("). Chỉ dùng khi thực sự cần thiết
 
-4. Độ dài tổng: ~${targetWordCount} từ
-   - MỞ ĐẦU: ~${Math.floor(targetWordCount * 0.2)} từ (20%)
-   - THÂN BÀI: ~${Math.floor(targetWordCount * 0.6)} từ (60% - PHẦN DÀI NHẤT)
-   - KẾT LUẬN: ~${Math.floor(targetWordCount * 0.2)} từ (20%)
+4. Độ dài: ~${targetWordCount} từ
 
-5. LƯU Ý QUAN TRỌNG:
-   - PHẢI viết đầy đủ cả 3 phần, KHÔNG ĐƯỢC bỏ sót phần nào
-   - THÂN BÀI phải chiếm 60% tổng số từ (dài nhất)
-   - Mỗi phần phải có nội dung đầy đủ, không viết sơ sài
-   - Viết tự nhiên, mạch lạc, logic rõ ràng
-   - KHÔNG xuất JSON, CHỈ viết essay văn bản markdown thuần túy
+5. Sáng tạo: Viết một cách tự nhiên, linh hoạt, không quá cứng nhắc.
 
-HÃY BẮT ĐẦU VIẾT NGAY BÂY GIỜ, ĐẢM BẢO ĐẦY ĐỦ CẢ 3 PHẦN:`;
+CHỈ viết essay văn bản markdown, KHÔNG xuất JSON.`;
 
     // Try different Gemini models with fallback (using valid model names)
     const modelsToTry = [
@@ -214,12 +190,6 @@ HÃY BẮT ĐẦU VIẾT NGAY BÂY GIỜ, ĐẢM BẢO ĐẦY ĐỦ CẢ 3 PHẦ
       }
     }
 
-    // Clean up excessive quotation marks
-    cleanedBody = this.cleanQuotationMarks(cleanedBody);
-
-    // Validate and normalize content structure
-    cleanedBody = this.validateAndNormalizeContent(cleanedBody);
-
     const wordCount = cleanedBody.split(/\s+/).length;
     const readingTime = Math.ceil(wordCount / 200); // Average reading speed: 200 words/min
 
@@ -245,117 +215,6 @@ HÃY BẮT ĐẦU VIẾT NGAY BÂY GIỜ, ĐẢM BẢO ĐẦY ĐỦ CẢ 3 PHẦ
   async deleteContent(id: number): Promise<boolean> {
     const result = await db.query('DELETE FROM contents WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
-  }
-
-  /**
-   * Clean and update all existing contents in database
-   * Removes excessive quotes, normalizes markdown, fixes formatting
-   */
-  async cleanAllContents(): Promise<{ updated: number; contents: Content[] }> {
-    console.log('🧹 Starting cleanup of all existing contents...');
-    
-    // Get all contents
-    const allContents = await this.getAllContents();
-    const updatedContents: Content[] = [];
-    
-    for (const content of allContents) {
-      let cleanedBody = content.body;
-      
-      // Apply cleaning functions
-      cleanedBody = this.cleanQuotationMarks(cleanedBody);
-      cleanedBody = this.validateAndNormalizeContent(cleanedBody);
-      
-      // Only update if content changed
-      if (cleanedBody !== content.body) {
-        const wordCount = cleanedBody.split(/\s+/).length;
-        const readingTime = Math.ceil(wordCount / 200);
-        
-        const result = await db.query(
-          `UPDATE contents 
-           SET body = $1, word_count = $2, reading_time = $3, updated_at = NOW() 
-           WHERE id = $4 
-           RETURNING *`,
-          [cleanedBody, wordCount, readingTime, content.id]
-        );
-        
-        if (result.rows[0]) {
-          updatedContents.push(result.rows[0]);
-          console.log(`✅ Updated content #${content.id}: ${content.title}`);
-        }
-      } else {
-        console.log(`⏭️ Content #${content.id} already clean, skipping`);
-      }
-    }
-    
-    console.log(`🎉 Cleanup complete! Updated ${updatedContents.length} of ${allContents.length} contents`);
-    
-    return {
-      updated: updatedContents.length,
-      contents: updatedContents
-    };
-  }
-
-  /**
-   * Clean up excessive quotation marks in content
-   */
-  cleanQuotationMarks(text: string): string {
-    // Remove unnecessary quotation marks around common phrases
-    // Keep only when they're actually needed (direct quotes, titles, etc.)
-    
-    // Replace multiple consecutive quotes with single ones
-    text = text.replace(/""+/g, '"');
-    text = text.replace(/''+/g, "'");
-    
-    // Remove quotes around single words that aren't titles or quotes
-    // Pattern: "word" -> word (but keep if it's a title or proper noun)
-    text = text.replace(/"([^"]{1,20})"/g, (match, content) => {
-      // Keep quotes if it's a title, proper noun, or technical term
-      if (
-        content.match(/^[A-ZĐÁÀẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ]/) ||
-        content.includes(' ') ||
-        content.length > 15
-      ) {
-        return match; // Keep the quotes
-      }
-      // Remove quotes for simple words
-      return content;
-    });
-    
-    // Remove quotes that are used for emphasis (not actual quotes)
-    // Pattern: "word" at the end of sentences or in lists
-    text = text.replace(/([^"])\s+"([^"]{1,30})"\s+([,\.;:])/g, '$1 $2$3');
-    
-    return text;
-  }
-
-  /**
-   * Validate and normalize content structure
-   * - Ensure proper section headers (MỞ ĐẦU, THÂN BÀI, KẾT LUẬN)
-   * - Normalize numbering and bullet points
-   */
-  validateAndNormalizeContent(text: string): string {
-    // Normalize section headers
-    text = text.replace(/^###\s*MỞ\s*ĐẦU/gi, 'MỞ ĐẦU');
-    text = text.replace(/^##\s*MỞ\s*ĐẦU/gi, 'MỞ ĐẦU');
-    text = text.replace(/^###\s*THÂN\s*BÀI/gi, 'THÂN BÀI');
-    text = text.replace(/^##\s*THÂN\s*BÀI/gi, 'THÂN BÀI');
-    text = text.replace(/^###\s*KẾT\s*LUẬN/gi, 'KẾT LUẬN');
-    text = text.replace(/^##\s*KẾT\s*LUẬN/gi, 'KẾT LUẬN');
-
-    // Normalize numbering patterns
-    // Fix inconsistent numbering: 1. 2. 3. or 1) 2) 3) -> 1. 2. 3.
-    text = text.replace(/^(\d+)\)\s+/gm, '$1. ');
-    
-    // Normalize bullet points: -, *, • -> •
-    text = text.replace(/^[-*]\s+/gm, '• ');
-    
-    // Fix spacing after bullets and numbers
-    text = text.replace(/^(•|\d+\.)\s{0,1}([^\s])/gm, '$1 $2');
-    
-    // Ensure proper line breaks before sections
-    text = text.replace(/([^\n])(MỞ ĐẦU|THÂN BÀI|KẾT LUẬN)/gi, '$1\n\n$2');
-    
-    return text.trim();
   }
 }
 

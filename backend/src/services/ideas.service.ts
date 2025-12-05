@@ -50,6 +50,19 @@ export class IdeasService {
   }
 
   /**
+   * Xóa nhiều ideas cùng lúc
+   */
+  async deleteManyIdeas(ids: number[]): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const result = await db.query(
+      'DELETE FROM ideas WHERE id = ANY($1::int[])',
+      [ids]
+    );
+    return result.rowCount ?? 0;
+  }
+
+  /**
    * Cập nhật status của idea
    * @param id - ID của idea
    * @param status - Status mới: 'shortlisted' | 'approved' | 'archived'
@@ -110,6 +123,7 @@ export class IdeasService {
    * Generate ideas bằng AI với retry logic
    * @param persona - Đối tượng mục tiêu
    * @param industry - Ngành nghề
+   * @param count - Số lượng ideas cần generate (default: 10)
    * @param provider - AI provider (openai hoặc gemini)
    * @param model - Model name
    * @param language - Ngôn ngữ (vi, en, ja, ko)
@@ -118,12 +132,18 @@ export class IdeasService {
   async generateIdeas(
     persona: string,
     industry: string,
+    count?: number,
     provider?: string,
     model?: string,
     language?: string
   ): Promise<Idea[]> {
     // Tạo batch_id cho lần generate này
     const batchId = randomUUID();
+
+    // Xác định số lượng ideas - PHẢI dùng số được truyền vào, chỉ default 5 nếu undefined
+    // FIX: Sử dụng nullish coalescing (??) thay vì || để chỉ fallback khi null/undefined
+    const ideaCount = count ?? 5;
+    console.log(`📊 Service received count: ${count}, using ideaCount: ${ideaCount}`);
 
     // Xác định ngôn ngữ
     const lang = language || 'vi';
@@ -138,33 +158,40 @@ export class IdeasService {
     // System prompt: yêu cầu JSON-only
     const systemPrompt = `You are a content idea generator. Always respond with valid JSON array only. No markdown, no code blocks, no explanations. Each object must have exactly: title (string), description (string), rationale (string). Generate content in ${languageName}.`;
 
-    // User prompt: generate 10 ideas
-    const userPrompt = `Generate 10 creative content ideas for a ${persona} in ${industry}. Return as JSON array with objects containing: title, description, rationale. All content must be in ${languageName}.`;
+    // User prompt: generate ideas với số lượng động
+    const userPrompt = `Generate ${ideaCount} creative content ideas for a ${persona} in ${industry}. Return as JSON array with objects containing: title, description, rationale. All content must be in ${languageName}.`;
+
+    // Debug log
+    console.log(`📝 AI Prompt will request ${ideaCount} ideas`);
 
     // Gộp system prompt vào đầu user prompt
     const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
 
     let lastError: Error | null = null;
-    const maxRetries = 3;
+    const maxRetries = 2; // Giảm retry cho mỗi provider
 
-    // Luôn sử dụng Gemini Flash Latest (nhanh, ổn định và miễn phí)
-    const aiProvider = AIProvider.GEMINI;
-    const aiModel = 'gemini-flash-latest';
+    // Thử Gemini 1.5 Flash (free) trước, nếu fail thì fallback sang OpenAI
+    const providers = [
+      { provider: AIProvider.GEMINI, model: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Free)' },
+      { provider: AIProvider.OPENAI, model: 'gpt-4o-mini', name: 'OpenAI GPT-4o-mini' }
+    ];
 
-    // Retry với exponential backoff
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`🤖 AI Generation attempt ${attempt}/${maxRetries} (batch: ${batchId})`);
+    // Try each provider
+    for (const { provider: aiProvider, model: aiModel, name: providerName } of providers) {
+      // Retry với exponential backoff cho mỗi provider
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🤖 Trying ${providerName} - attempt ${attempt}/${maxRetries} (batch: ${batchId})`);
 
-        // Gọi LLM với full prompt
-        const responseText = await llmClient.generateCompletion(
-          fullPrompt,
-          {
-            provider: aiProvider,
-            model: aiModel,
-            temperature: 0.7,
-          }
-        );
+          // Gọi LLM với full prompt
+          const responseText = await llmClient.generateCompletion(
+            fullPrompt,
+            {
+              provider: aiProvider,
+              model: aiModel,
+              temperature: 0.7,
+            }
+          );
 
         // Extract JSON array từ response (từ '[' đến ']')
         const jsonArrayStr = this.extractJsonArray(responseText);
@@ -188,7 +215,7 @@ export class IdeasService {
 
         // Insert tất cả ideas vào database trong một transaction
         const savedIdeas: Idea[] = [];
-        
+
         for (const item of validation.data!) {
           const result = await db.query(
             `INSERT INTO ideas (title, description, persona, industry, status, rationale, batch_id, created_at)
@@ -208,15 +235,15 @@ export class IdeasService {
         }
 
         console.log(
-          `✅ Successfully generated and saved ${savedIdeas.length} ideas (batch: ${batchId})`
+          `✅ Successfully generated and saved ${savedIdeas.length} ideas with ${providerName} (batch: ${batchId})`
         );
         return savedIdeas;
 
       } catch (error) {
         lastError = error as Error;
-        console.error(`❌ Attempt ${attempt} failed:`, lastError.message);
+        console.error(`❌ ${providerName} attempt ${attempt} failed:`, lastError.message);
 
-        // Exponential backoff: 1s, 2s, 4s
+        // Exponential backoff: 1s, 2s
         if (attempt < maxRetries) {
           const delayMs = Math.pow(2, attempt - 1) * 1000;
           console.log(`⏳ Waiting ${delayMs}ms before retry...`);
@@ -225,9 +252,13 @@ export class IdeasService {
       }
     }
 
-    // Sau 3 lần retry vẫn fail
+      // Nếu provider này fail hết retry, log và thử provider tiếp theo
+      console.log(`⚠️ ${providerName} failed after ${maxRetries} attempts, trying next provider...`);
+    }
+
+    // Tất cả providers đều fail
     throw new Error(
-      `Failed to generate ideas after ${maxRetries} attempts: ${lastError?.message}`
+      `Failed to generate ideas after trying all providers: ${lastError?.message}`
     );
   }
 

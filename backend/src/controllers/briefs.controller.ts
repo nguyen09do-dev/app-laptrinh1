@@ -157,6 +157,40 @@ export class BriefsController {
       });
     }
   }
+
+  /**
+   * POST /api/briefs/bulk-delete - Delete many briefs
+   * Body: { ids: number[] }
+   */
+  async bulkDeleteBriefs(
+    request: FastifyRequest<{ Body: { ids: number[] } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { ids } = request.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'ids array is required and must not be empty',
+        });
+      }
+
+      const deletedCount = await briefsService.deleteManyBriefs(ids);
+
+      return reply.send({
+        success: true,
+        message: `Successfully deleted ${deletedCount} brief(s)`,
+        deletedCount,
+      });
+    } catch (error) {
+      console.error('Error bulk deleting briefs:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to delete briefs',
+      });
+    }
+  }
 }
 
 // Export singleton instance

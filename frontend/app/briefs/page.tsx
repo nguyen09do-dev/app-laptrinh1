@@ -83,7 +83,7 @@ export default function BriefsPage() {
 
   const briefs = briefsData?.data || [];
   const approvedIdeas = ideasData?.data?.filter((idea: Idea) => idea.status === 'approved') || [];
-  const loading = !briefsData && !briefsError;
+  const loading = (!briefsData && !briefsError) || (!ideasData && !ideasError);
   const error = briefsError || ideasError;
 
   const handleCreateBrief = async (ideaId: number) => {

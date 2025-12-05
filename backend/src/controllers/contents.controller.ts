@@ -77,30 +77,6 @@ export class ContentsController {
       return reply.status(500).send({ success: false, error: 'Failed to delete content' });
     }
   }
-
-  /**
-   * POST /api/contents/clean-all
-   * Clean and normalize all existing contents
-   */
-  async cleanAllContents(request: FastifyRequest, reply: FastifyReply) {
-    try {
-      console.log('🧹 API: Starting cleanup of all contents...');
-      const result = await contentsService.cleanAllContents();
-      
-      return reply.send({
-        success: true,
-        message: `Đã cập nhật ${result.updated} contents`,
-        data: {
-          updated: result.updated,
-          contents: result.contents
-        }
-      });
-    } catch (error) {
-      console.error('Error cleaning contents:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return reply.status(500).send({ success: false, error: `Failed to clean contents: ${errorMessage}` });
-    }
-  }
 }
 
 export const contentsController = new ContentsController();

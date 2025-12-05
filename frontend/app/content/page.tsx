@@ -1,22 +1,14 @@
 'use client';
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import useSWR from 'swr';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { CopyToClipboard } from '@/components/ui/copy-to-clipboard';
 import { ContentRenderer } from '@/components/ui/content-renderer';
 import { showToast } from '@/lib/toast';
-import { matchesSearch } from '@/lib/textNormalization';
-import { FileText, Search, LayoutGrid, Table2 } from 'lucide-react';
-
-// Lazy load table view
-const ContentTableView = lazy(() => import('../components/ContentTableView'));
-
-// SWR fetcher
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+import { FileText, Search } from 'lucide-react';
 
 interface Brief {
   id: number;
@@ -53,42 +45,48 @@ interface Content {
 
 export default function ContentPage() {
   const searchParams = useSearchParams();
+  const [briefsWithoutContent, setBriefsWithoutContent] = useState<Brief[]>([]);
+  const [contents, setContents] = useState<Content[]>([]);
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
+  const [loading, setLoading] = useState(true);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterFormat, setFilterFormat] = useState<string>('all');
   const [filterIndustry, setFilterIndustry] = useState<string>('all');
   const [filterPersona, setFilterPersona] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
-  // Use SWR for data fetching with caching
-  const { data: briefsData, error: briefsError } = useSWR(
-    'http://localhost:3001/api/briefs',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 5000,
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+
+      // Fetch all briefs
+      const briefsRes = await fetch('http://localhost:3001/api/briefs');
+      const briefsData = await briefsRes.json();
+      const allBriefs = briefsData.data || [];
+
+      // Fetch all contents
+      const contentsRes = await fetch('http://localhost:3001/api/contents');
+      const contentsData = await contentsRes.json();
+      const allContents = contentsData.data || [];
+
+      setContents(allContents);
+
+      // Find briefs that don't have content yet
+      const contentBriefIds = new Set(allContents.map((c: Content) => c.brief_id));
+      const briefsWithout = allBriefs.filter((b: Brief) => !contentBriefIds.has(b.id));
+      setBriefsWithoutContent(briefsWithout);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      showToast.error('Không thể tải dữ liệu');
+    } finally {
+      setLoading(false);
     }
-  );
+  };
 
-  const { data: contentsData, error: contentsError, mutate: mutateContents } = useSWR(
-    'http://localhost:3001/api/contents',
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 5000,
-    }
-  );
-
-  const allBriefs = briefsData?.data || [];
-  const contents = contentsData?.data || [];
-  const loading = (!briefsData && !briefsError) || (!contentsData && !contentsError);
-
-  // Find briefs that don't have content yet
-  const contentBriefIds = new Set(contents.map((c: Content) => c.brief_id));
-  const briefsWithoutContent = allBriefs.filter((b: Brief) => !contentBriefIds.has(b.id));
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   // Auto-open content if openId is provided in URL
   useEffect(() => {
@@ -138,7 +136,7 @@ export default function ContentPage() {
       const data = await response.json();
 
       if (data.success) {
-        await mutateContents(); // Refresh content data using SWR
+        await fetchData();
         setSelectedContent(null);
         showToast.success('Đã xóa content thành công!');
         setSuccessMessage(null);
@@ -164,29 +162,6 @@ export default function ContentPage() {
     }
   };
 
-  // Clean body text for preview (remove markdown syntax)
-  const cleanPreviewText = (text: string): string => {
-    if (!text) return '';
-    return text
-      // Remove markdown headers (## and ###)
-      .replace(/^#{1,4}\s+/gm, '')
-      // Remove section headers
-      .replace(/MỞ ĐẦU|THÂN BÀI|KẾT LUẬN/gi, '')
-      // Remove bold markers
-      .replace(/\*\*(.+?)\*\*/g, '$1')
-      // Remove italic markers
-      .replace(/\*(.+?)\*/g, '$1')
-      // Remove bullet points
-      .replace(/^[•\-\*]\s+/gm, '')
-      // Remove numbered lists
-      .replace(/^\d+[\.\)]\s+/gm, '')
-      // Remove excessive quotation marks
-      .replace(/"([^"]{1,20})"/g, '$1')
-      // Collapse multiple spaces
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
   // Get unique values for filters
   const uniqueIndustries = Array.from(new Set(contents.map(c => c.industry).filter(Boolean))).sort();
   const uniquePersonas = Array.from(new Set(contents.map(c => c.persona).filter(Boolean))).sort();
@@ -199,16 +174,7 @@ export default function ContentPage() {
     const matchFormat = filterFormat === 'all' || content.format === filterFormat;
     const matchIndustry = filterIndustry === 'all' || content.industry === filterIndustry;
     const matchPersona = filterPersona === 'all' || content.persona === filterPersona;
-
-    // Search match (accent-insensitive for Vietnamese)
-    const matchSearch = !searchQuery ||
-      matchesSearch(content.title, searchQuery) ||
-      matchesSearch(content.body, searchQuery) ||
-      matchesSearch(content.brief_title || '', searchQuery) ||
-      matchesSearch(content.persona || '', searchQuery) ||
-      matchesSearch(content.industry || '', searchQuery);
-
-    return matchStatus && matchFormat && matchIndustry && matchPersona && matchSearch;
+    return matchStatus && matchFormat && matchIndustry && matchPersona;
   });
 
   if (loading) {
@@ -223,7 +189,7 @@ export default function ContentPage() {
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 p-8">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -282,29 +248,9 @@ export default function ContentPage() {
             📝 Contents ({contents.length})
           </h2>
 
-          {/* Search and Filter section */}
+          {/* Filter section */}
           {contents.length > 0 && (
             <div className="mb-6 space-y-4">
-              {/* Search box */}
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm content (hỗ trợ tiếng Việt có dấu và không dấu)..."
-                  className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-400/50 transition-all"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
               {/* Status filter */}
               <div>
                 <h3 className="text-sm font-medium text-gray-300 mb-2">📊 Lọc theo Trạng thái</h3>
@@ -532,38 +478,10 @@ export default function ContentPage() {
                 return (
                   <>
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        {/* View Mode Toggle */}
-                        <div className="flex items-center gap-2 bg-white/10 rounded-lg p-1">
-                          <button
-                            onClick={() => setViewMode('grid')}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                              viewMode === 'grid'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-gray-400 hover:text-gray-200'
-                            }`}
-                          >
-                            <LayoutGrid className="w-4 h-4" />
-                            Grid
-                          </button>
-                          <button
-                            onClick={() => setViewMode('table')}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                              viewMode === 'table'
-                                ? 'bg-purple-600 text-white'
-                                : 'text-gray-400 hover:text-gray-200'
-                            }`}
-                          >
-                            <Table2 className="w-4 h-4" />
-                            Table
-                          </button>
-                        </div>
-                        <p className="text-gray-300 text-sm">
-                          Hiển thị <span className="font-semibold text-white">{filtered.length}</span> trong tổng số <span className="font-semibold text-white">{contents.length}</span> contents
-                        </p>
-                      </div>
+                      <p className="text-gray-300 text-sm">
+                        Hiển thị <span className="font-semibold text-white">{filtered.length}</span> trong tổng số <span className="font-semibold text-white">{contents.length}</span> contents
+                      </p>
                     </div>
-                    {viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {filtered.map((content) => (
                 <motion.div
@@ -583,7 +501,7 @@ export default function ContentPage() {
                       {content.status}
                     </span>
                   </div>
-                  <p className="text-gray-300 text-sm mb-3 line-clamp-3">{cleanPreviewText(content.body)}</p>
+                  <p className="text-gray-300 text-sm mb-3 line-clamp-3">{content.body}</p>
                   <div className="flex items-center justify-between text-xs text-gray-400">
                     <span>📊 {content.word_count} từ</span>
                     <span>⏱️ {content.reading_time || Math.ceil(content.word_count / 200)} phút đọc</span>
@@ -594,15 +512,6 @@ export default function ContentPage() {
                 </motion.div>
                       ))}
                     </div>
-                    ) : (
-                      <Suspense fallback={<TableSkeleton />}>
-                        <ContentTableView
-                          contents={filtered}
-                          onView={setSelectedContent}
-                          onDelete={handleDeleteContent}
-                        />
-                      </Suspense>
-                    )}
                   </>
                 );
               })()}

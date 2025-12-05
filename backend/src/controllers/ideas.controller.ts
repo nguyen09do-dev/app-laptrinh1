@@ -108,14 +108,49 @@ export class IdeasController {
   }
 
   /**
+   * POST /api/ideas/bulk-delete - Xóa nhiều ideas cùng lúc
+   * Body: { ids: number[] }
+   */
+  async bulkDeleteIdeas(
+    request: FastifyRequest<{ Body: { ids: number[] } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { ids } = request.body;
+
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'ids array is required and must not be empty',
+        });
+      }
+
+      const deletedCount = await ideasService.deleteManyIdeas(ids);
+
+      return reply.send({
+        success: true,
+        message: `Successfully deleted ${deletedCount} idea(s)`,
+        deletedCount,
+      });
+    } catch (error) {
+      console.error('Error bulk deleting ideas:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to delete ideas',
+      });
+    }
+  }
+
+  /**
    * POST /api/ideas/generate - Generate ideas bằng AI
-   * Input: { persona: string, industry: string, provider?: string, model?: string, language?: string }
+   * Input: { persona: string, industry: string, count?: number, provider?: string, model?: string, language?: string }
    */
   async generateIdeas(
     request: FastifyRequest<{
       Body: {
         persona: string;
         industry: string;
+        count?: number;
         provider?: string;
         model?: string;
         language?: string;
@@ -124,7 +159,13 @@ export class IdeasController {
     reply: FastifyReply
   ) {
     try {
-      const { persona, industry, provider, model, language } = request.body;
+      const { persona, industry, count, provider, model, language } = request.body;
+
+      // Debug log - CRITICAL for debugging count issue
+      console.log('═══════════════════════════════════════════');
+      console.log('📥 Request body:', JSON.stringify(request.body, null, 2));
+      console.log('📊 Count value:', count, 'Type:', typeof count);
+      console.log('═══════════════════════════════════════════');
 
       // Validate input
       if (!persona || !industry) {
@@ -134,14 +175,18 @@ export class IdeasController {
         });
       }
 
-      console.log(
-        `🎯 Generating ideas for persona: "${persona}", industry: "${industry}"`
-      );
+      // Ensure count is a valid number between 1-10
+      const validatedCount = (typeof count === 'number' && count >= 1 && count <= 10) 
+        ? count 
+        : 5; // Default to 5 if invalid
 
-      // Gọi service để generate và lưu ideas
+      console.log(`🎯 Generating ${validatedCount} ideas for persona: "${persona}", industry: "${industry}"`);
+
+      // Gọi service để generate và lưu ideas - PASS validatedCount không phải count gốc
       const ideas = await ideasService.generateIdeas(
         persona,
         industry,
+        validatedCount,  // FIX: Use validated count instead of raw count
         provider,
         model,
         language
