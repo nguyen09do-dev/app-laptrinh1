@@ -216,6 +216,75 @@ CHỈ viết essay văn bản markdown, KHÔNG xuất JSON.`;
     const result = await db.query('DELETE FROM contents WHERE id = $1', [id]);
     return (result.rowCount ?? 0) > 0;
   }
+
+  /**
+   * Convert a published Content Pack to Content
+   * Only packs with status 'published' can be converted
+   */
+  async createContentFromPack(packId: string): Promise<Content> {
+    // 1. Get the pack
+    const packResult = await db.query(
+      'SELECT * FROM content_packs WHERE pack_id = $1',
+      [packId]
+    );
+    const pack = packResult.rows[0];
+
+    if (!pack) {
+      throw new Error('Content pack not found');
+    }
+
+    if (pack.status !== 'published') {
+      throw new Error(`Only published packs can be converted to content. Current status: ${pack.status}`);
+    }
+
+    // 2. Get the brief for title and other metadata
+    const briefResult = await db.query('SELECT * FROM briefs WHERE id = $1', [pack.brief_id]);
+    const brief = briefResult.rows[0];
+
+    if (!brief) {
+      throw new Error('Brief not found for this pack');
+    }
+
+    // 3. Check if content already exists for this brief
+    const existingContent = await db.query(
+      'SELECT * FROM contents WHERE brief_id = $1',
+      [pack.brief_id]
+    );
+    if (existingContent.rows[0]) {
+      throw new Error('Content already exists for this brief');
+    }
+
+    // 4. Calculate reading time
+    const wordCount = pack.word_count || 0;
+    const readingTime = Math.ceil(wordCount / 200);
+
+    // 5. Insert the content
+    const result = await db.query(
+      `INSERT INTO contents (brief_id, title, body, format, word_count, status, reading_time, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+       RETURNING *`,
+      [
+        pack.brief_id,
+        brief.title,
+        pack.draft_content,
+        'markdown',
+        wordCount,
+        'published',  // Content from pack is already published
+        readingTime
+      ]
+    );
+
+    console.log(`✅ Created content from pack ${packId} for brief ${pack.brief_id}`);
+    return result.rows[0];
+  }
+
+  /**
+   * Get content by brief ID
+   */
+  async getContentByBriefId(briefId: number): Promise<Content | null> {
+    const result = await db.query('SELECT * FROM contents WHERE brief_id = $1', [briefId]);
+    return result.rows[0] || null;
+  }
 }
 
 export const contentsService = new ContentsService();

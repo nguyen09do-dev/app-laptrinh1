@@ -20,6 +20,11 @@ export interface LLMOptions {
 }
 
 /**
+ * Streaming callback type
+ */
+export type StreamCallback = (chunk: string, done: boolean) => void;
+
+/**
  * LLMClient - Unified interface cho OpenAI và Google Gemini
  */
 class LLMClient {
@@ -64,6 +69,102 @@ class LLMClient {
       return this.generateWithGemini(prompt, options);
     } else {
       return this.generateWithOpenAI(prompt, options);
+    }
+  }
+
+  /**
+   * Generate text completion with streaming (async generator)
+   * Yields text chunks as they are generated
+   */
+  async *generateCompletionStream(
+    prompt: string,
+    options: LLMOptions = {}
+  ): AsyncGenerator<string, void, unknown> {
+    const provider =
+      typeof options.provider === 'string'
+        ? (options.provider.toLowerCase() as AIProvider)
+        : options.provider || this.defaultProvider;
+
+    if (provider === AIProvider.GEMINI) {
+      yield* this.streamWithGemini(prompt, options);
+    } else {
+      yield* this.streamWithOpenAI(prompt, options);
+    }
+  }
+
+  /**
+   * Stream with OpenAI
+   */
+  private async *streamWithOpenAI(
+    prompt: string,
+    options: LLMOptions
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.openaiClient) {
+      throw new Error('OpenAI client not initialized. Check OPENAI_API_KEY.');
+    }
+
+    const model = options.model || 'gpt-4o-mini';
+    const temperature = options.temperature ?? 0.7;
+    const maxTokens = options.maxTokens || 2000;
+
+    console.log(`🤖 Streaming with OpenAI (${model})...`);
+
+    const stream = await this.openaiClient.chat.completions.create({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      temperature,
+      max_tokens: maxTokens,
+      stream: true,
+    });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        yield content;
+      }
+    }
+  }
+
+  /**
+   * Stream with Google Gemini
+   */
+  private async *streamWithGemini(
+    prompt: string,
+    options: LLMOptions
+  ): AsyncGenerator<string, void, unknown> {
+    if (!this.geminiClient) {
+      throw new Error('Gemini client not initialized. Check GEMINI_API_KEY.');
+    }
+
+    // Use the free and stable model: gemini-1.5-flash
+    let modelName = options.model || 'gemini-1.5-flash';
+
+    // Support common aliases - all map to free model
+    if (modelName === 'gemini-flash' || modelName === 'gemini-flash-latest') {
+      modelName = 'gemini-1.5-flash';
+    } else if (modelName === 'gemini-pro' || modelName === 'gemini-pro-latest') {
+      modelName = 'gemini-1.5-flash'; // Use flash instead of pro (free)
+    }
+
+    const temperature = options.temperature ?? 0.7;
+
+    console.log(`🤖 Streaming with Gemini (${modelName})...`);
+
+    const model = this.geminiClient.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        temperature,
+        maxOutputTokens: options.maxTokens || 2000,
+      },
+    });
+
+    const result = await model.generateContentStream(prompt);
+
+    for await (const chunk of result.stream) {
+      const text = chunk.text();
+      if (text) {
+        yield text;
+      }
     }
   }
 

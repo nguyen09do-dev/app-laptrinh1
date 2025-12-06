@@ -6,6 +6,7 @@ import { briefsRoutes } from './routes/briefs.routes.js';
 import { contentsRoutes } from './routes/contents.routes.js';
 import { analyticsRoutes } from './routes/analytics.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
+import { packsRoutes } from './routes/packs.routes.js';
 import { db } from './lib/db.js';
 
 // Tạo Fastify instance
@@ -27,6 +28,7 @@ fastify.register(briefsRoutes, { prefix: '/api' });
 fastify.register(contentsRoutes, { prefix: '/api' });
 fastify.register(analyticsRoutes, { prefix: '/api' });
 fastify.register(settingsRoutes, { prefix: '/api' });
+fastify.register(packsRoutes, { prefix: '/api' });
 
 // Health check endpoint
 fastify.get('/health', async () => {

@@ -77,6 +77,48 @@ export class ContentsController {
       return reply.status(500).send({ success: false, error: 'Failed to delete content' });
     }
   }
+
+  /**
+   * POST /api/contents/from-pack/:packId
+   * Convert a published content pack to content
+   */
+  async createContentFromPack(
+    request: FastifyRequest<{ Params: { packId: string } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { packId } = request.params;
+
+      if (!packId) {
+        return reply.status(400).send({ success: false, error: 'Pack ID is required' });
+      }
+
+      console.log(`📦 Converting pack ${packId} to content...`);
+      const content = await contentsService.createContentFromPack(packId);
+
+      return reply.send({
+        success: true,
+        data: content,
+        message: 'Content created from pack successfully',
+      });
+    } catch (error) {
+      console.error('Error creating content from pack:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage.includes('not found')) {
+        return reply.status(404).send({ success: false, error: errorMessage });
+      }
+
+      if (errorMessage.includes('Only published') || errorMessage.includes('already exists')) {
+        return reply.status(400).send({ success: false, error: errorMessage });
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: `Failed to create content from pack: ${errorMessage}`,
+      });
+    }
+  }
 }
 
 export const contentsController = new ContentsController();

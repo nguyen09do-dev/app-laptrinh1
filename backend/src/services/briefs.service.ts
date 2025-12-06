@@ -24,20 +24,28 @@ export interface Brief {
  */
 export class BriefsService {
   /**
+   * Safely parse JSON with fallback
+   */
+  private safeJsonParse(value: any, fallback: any = null): any {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value !== 'string') return value;
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      console.warn('Failed to parse JSON:', value?.substring?.(0, 100));
+      return fallback;
+    }
+  }
+
+  /**
    * Parse brief data from database
    */
   private parseBrief(row: any): Brief {
     return {
       ...row,
-      key_messages: typeof row.key_messages === 'string'
-        ? JSON.parse(row.key_messages)
-        : row.key_messages,
-      seo_keywords: typeof row.seo_keywords === 'string'
-        ? JSON.parse(row.seo_keywords)
-        : row.seo_keywords,
-      content_structure: typeof row.content_structure === 'string'
-        ? JSON.parse(row.content_structure)
-        : row.content_structure
+      key_messages: this.safeJsonParse(row.key_messages, []),
+      seo_keywords: this.safeJsonParse(row.seo_keywords, []),
+      content_structure: this.safeJsonParse(row.content_structure, {})
     };
   }
 

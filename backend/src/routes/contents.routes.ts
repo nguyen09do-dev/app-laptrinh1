@@ -14,6 +14,23 @@ export async function contentsRoutes(fastify: FastifyInstance) {
     handler: contentsController.generateContentFromBrief.bind(contentsController),
   });
 
+  /**
+   * POST /api/contents/from-pack/:packId
+   * Convert a published content pack to content
+   */
+  fastify.post('/contents/from-pack/:packId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+        },
+        required: ['packId'],
+      },
+    },
+    handler: contentsController.createContentFromPack.bind(contentsController),
+  });
+
   fastify.delete('/contents/:id', {
     handler: contentsController.deleteContent.bind(contentsController),
   });
