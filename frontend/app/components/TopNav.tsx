@@ -11,6 +11,7 @@ export default function TopNav() {
   const { language, setLanguage } = useLanguage();
 
   const navItems = [
+    { name: 'Welcome', path: '/welcome' },
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Ideas', path: '/ideas' },
     { name: 'Briefs', path: '/briefs' },
