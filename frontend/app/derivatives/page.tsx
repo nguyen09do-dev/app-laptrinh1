@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { showToast } from '@/lib/toast';
 import {
@@ -44,6 +45,13 @@ interface DerivativeVersion {
 }
 
 export default function DerivativesPage() {
+  const router = useRouter();
+  
+  // Redirect to Content Studio
+  useEffect(() => {
+    router.push('/studio');
+  }, [router]);
+
   const [packs, setPacks] = useState<ContentPack[]>([]);
   const [selectedPack, setSelectedPack] = useState<ContentPack | null>(null);
   const [isLoading, setIsLoading] = useState(true);

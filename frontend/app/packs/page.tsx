@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DraftEditor } from '../components/DraftEditor';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
@@ -101,6 +102,13 @@ const ALLOWED_TRANSITIONS: Record<PackStatus, PackStatus[]> = {
 };
 
 export default function PacksPage() {
+  const router = useRouter();
+  
+  // Redirect to Content Studio
+  useEffect(() => {
+    router.push('/studio');
+  }, [router]);
+
   // State
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [packs, setPacks] = useState<ContentPack[]>([]);

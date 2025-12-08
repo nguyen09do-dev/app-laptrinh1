@@ -11,14 +11,11 @@ export default function TopNav() {
   const { language, setLanguage } = useLanguage();
 
   const navItems = [
-    { name: 'Welcome', path: '/welcome' },
     { name: 'Dashboard', path: '/dashboard' },
     { name: 'Ideas', path: '/ideas' },
     { name: 'Briefs', path: '/briefs' },
-    { name: 'Packs', path: '/packs' },
-    { name: 'Content', path: '/content' },
-    { name: 'Derivatives', path: '/derivatives' },
-    { name: 'Documents', path: '/documents' },
+    { name: 'Content Studio', path: '/studio' },
+    { name: 'Library', path: '/library' },
     { name: 'Analytics', path: '/analytics' },
     { name: 'Settings', path: '/settings' },
   ];
