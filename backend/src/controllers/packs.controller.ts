@@ -77,7 +77,7 @@ export class PacksController {
     request: FastifyRequest<{ Body: CreateDraftInput }>,
     reply: FastifyReply
   ) {
-    const { pack_id, brief_id, audience } = request.body;
+    const { pack_id, brief_id, audience, useRAG, wordCount, style, searchFilters } = request.body;
 
     // Validate required fields
     if (!brief_id) {
@@ -96,7 +96,11 @@ export class PacksController {
       });
     }
 
-    console.log(`🚀 Starting SSE draft generation for brief ${briefIdNum}`);
+    console.log(`🚀 Starting SSE draft generation for brief ${briefIdNum}${useRAG ? ' (RAG-enabled)' : ''}`, {
+      wordCount,
+      style,
+      useRAG
+    });
 
     // Set SSE headers
     reply.raw.writeHead(200, {
@@ -118,7 +122,7 @@ export class PacksController {
     try {
       // Stream content generation
       const stream = packsService.generateDraftStream(
-        { pack_id, brief_id: briefIdNum, audience },
+        { pack_id, brief_id: briefIdNum, audience, useRAG, wordCount, style, searchFilters },
         { temperature: 0.7, maxTokens: 2000 }
       );
 
@@ -147,6 +151,59 @@ export class PacksController {
     } finally {
       // End the response
       reply.raw.end();
+    }
+  }
+
+  /**
+   * POST /api/packs/from-brief/:briefId - Generate draft pack (non-streaming)
+   * Body: { wordCount?: number; style?: string; useRAG?: boolean; searchFilters?: {...} }
+   */
+  async generateDraftFromBrief(
+    request: FastifyRequest<{
+      Params: { briefId: string };
+      Body?: { wordCount?: number; style?: string; useRAG?: boolean; searchFilters?: any };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const briefId = parseInt(request.params.briefId);
+      if (isNaN(briefId)) {
+        return reply.status(400).send({ success: false, error: 'Invalid brief ID' });
+      }
+
+      const { wordCount, style, useRAG = false, searchFilters } = request.body || {};
+
+      console.log(`📦 Creating draft pack from brief ${briefId}${useRAG ? ' (RAG-enabled)' : ''}`, {
+        wordCount,
+        style,
+      });
+
+      // Call service to generate draft (this will use streaming internally but wait for completion)
+      const pack = await packsService.generateDraftComplete({
+        brief_id: briefId,
+        useRAG,
+        wordCount,
+        style,
+        searchFilters,
+      });
+
+      return reply.send({
+        success: true,
+        data: pack,
+        message: `Draft pack created successfully${useRAG ? ' with RAG enhancement' : ''}`,
+      });
+    } catch (error) {
+      console.error('Error generating draft pack:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (errorMessage.includes('not found')) {
+        return reply.status(404).send({ success: false, error: errorMessage });
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: `Failed to generate draft pack: ${errorMessage}`,
+      });
     }
   }
 

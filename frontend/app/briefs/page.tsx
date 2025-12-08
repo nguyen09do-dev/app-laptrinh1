@@ -57,6 +57,7 @@ export default function BriefsPage() {
   const [contentOptions, setContentOptions] = useState({
     wordCount: 800,
     style: 'professional', // professional, casual, academic
+    useRAG: true, // Enable RAG by default
   });
   const [filterIndustry, setFilterIndustry] = useState<string>('all');
   const [filterPersona, setFilterPersona] = useState<string>('all');
@@ -111,12 +112,12 @@ export default function BriefsPage() {
     }
   };
 
-  const handleGenerateContent = async (briefId: number) => {
+  const handleGenerateDraft = async (briefId: number) => {
     try {
       setGeneratingContent(briefId);
       setShowContentOptions(null); // Close modal
 
-      const response = await fetch(`http://localhost:3001/api/contents/from-brief/${briefId}`, {
+      const response = await fetch(`http://localhost:3001/api/packs/from-brief/${briefId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,21 +125,22 @@ export default function BriefsPage() {
         body: JSON.stringify({
           wordCount: contentOptions.wordCount,
           style: contentOptions.style,
+          useRAG: contentOptions.useRAG,
         }),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        showToast.success('Đã tạo content thành công!');
-        // Navigate to content page with content ID to auto-open
-        router.push(`/content?openId=${data.data.id}`);
+        showToast.success('Đã tạo draft pack thành công!');
+        // Navigate to packs page with pack ID to auto-open
+        router.push(`/packs?openId=${data.data.pack_id}`);
       } else {
-        showToast.error(data.error || 'Không thể tạo content');
+        showToast.error(data.error || 'Không thể tạo draft');
       }
     } catch (error) {
-      console.error('Error generating content:', error);
-      showToast.error('Lỗi khi tạo content');
+      console.error('Error generating draft:', error);
+      showToast.error('Lỗi khi tạo draft');
     } finally {
       setGeneratingContent(null);
     }
@@ -205,7 +207,7 @@ export default function BriefsPage() {
 
         {error && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-xl text-red-400">
-            {error}
+            {error instanceof Error ? error.message : String(error)}
           </div>
         )}
 
@@ -457,7 +459,7 @@ export default function BriefsPage() {
                         ) : (
                           <>
                             <FileText className="w-4 h-4" />
-                            <span>Tạo Content</span>
+                            <span>Tạo Draft</span>
                           </>
                         )}
                       </button>
@@ -633,55 +635,171 @@ export default function BriefsPage() {
                   <label className="block text-midnight-200 font-semibold mb-3">
                     🎨 Phong cách viết
                   </label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-3">
+                    {/* Professional */}
                     <button
                       onClick={() => setContentOptions({ ...contentOptions, style: 'professional' })}
-                      className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                      className={`w-full px-5 py-4 rounded-xl font-medium transition-all text-left ${
                         contentOptions.style === 'professional'
-                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                          ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg shadow-blue-500/30 ring-2 ring-blue-400'
+                          : 'glass-card text-midnight-200 hover:bg-midnight-800/80'
                       }`}
                     >
-                      Chuyên nghiệp
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-lg mb-1">
+                            💼 Professional (Chuyên nghiệp)
+                          </div>
+                          <div className={`text-sm ${contentOptions.style === 'professional' ? 'text-blue-100' : 'text-midnight-400'}`}>
+                            Formal, khách quan, thuật ngữ chuyên ngành
+                          </div>
+                        </div>
+                        {contentOptions.style === 'professional' && (
+                          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                            <span className="text-sm">✓</span>
+                          </div>
+                        )}
+                      </div>
                     </button>
+
+                    {/* Casual */}
                     <button
                       onClick={() => setContentOptions({ ...contentOptions, style: 'casual' })}
-                      className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                      className={`w-full px-5 py-4 rounded-xl font-medium transition-all text-left ${
                         contentOptions.style === 'casual'
-                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/30 ring-2 ring-green-400'
+                          : 'glass-card text-midnight-200 hover:bg-midnight-800/80'
                       }`}
                     >
-                      Thân mật
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-lg mb-1">
+                            😊 Casual (Thân mật)
+                          </div>
+                          <div className={`text-sm ${contentOptions.style === 'casual' ? 'text-green-100' : 'text-midnight-400'}`}>
+                            Gần gũi, dễ hiểu, ngôn ngữ hàng ngày
+                          </div>
+                        </div>
+                        {contentOptions.style === 'casual' && (
+                          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                            <span className="text-sm">✓</span>
+                          </div>
+                        )}
+                      </div>
                     </button>
+
+                    {/* Academic */}
                     <button
                       onClick={() => setContentOptions({ ...contentOptions, style: 'academic' })}
-                      className={`px-4 py-3 rounded-lg font-semibold transition-all ${
+                      className={`w-full px-5 py-4 rounded-xl font-medium transition-all text-left ${
                         contentOptions.style === 'academic'
-                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                          : 'bg-midnight-800 text-midnight-300 hover:bg-midnight-700'
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 ring-2 ring-purple-400'
+                          : 'glass-card text-midnight-200 hover:bg-midnight-800/80'
                       }`}
                     >
-                      Học thuật
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-bold text-lg mb-1">
+                            🎓 Academic (Học thuật)
+                          </div>
+                          <div className={`text-sm ${contentOptions.style === 'academic' ? 'text-purple-100' : 'text-midnight-400'}`}>
+                            Chính xác, có trích dẫn, cấu trúc logic
+                          </div>
+                        </div>
+                        {contentOptions.style === 'academic' && (
+                          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                            <span className="text-sm">✓</span>
+                          </div>
+                        )}
+                      </div>
                     </button>
                   </div>
                 </div>
 
+                {/* RAG Option */}
+                <div className="mt-6 pt-6 border-t border-midnight-700">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <div className="relative">
+                          <input
+                            type="checkbox"
+                            checked={contentOptions.useRAG}
+                            onChange={(e) => setContentOptions({ ...contentOptions, useRAG: e.target.checked })}
+                            className="sr-only peer"
+                          />
+                          <div className="w-14 h-8 bg-midnight-700 rounded-full peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-indigo-500 transition-all duration-300 shadow-inner"></div>
+                          <div className="absolute left-1 top-1 w-6 h-6 bg-white rounded-full transition-all duration-300 peer-checked:translate-x-6 shadow-lg"></div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-bold text-lg text-midnight-100 flex items-center gap-2">
+                            📚 Sử dụng RAG
+                            <span className={`text-xs px-2 py-1 rounded-full ${contentOptions.useRAG ? 'bg-blue-500/20 text-blue-300' : 'bg-midnight-700 text-midnight-400'}`}>
+                              {contentOptions.useRAG ? 'BẬT' : 'TẮT'}
+                            </span>
+                          </div>
+                          <div className="text-sm text-midnight-400 mt-1">
+                            {contentOptions.useRAG ? (
+                              <span className="text-blue-300">
+                                ✓ Tìm kiếm thông tin từ Knowledge Base để tạo nội dung chính xác hơn
+                              </span>
+                            ) : (
+                              <span>
+                                Tạo nội dung từ kiến thức tổng quát của AI
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* RAG Details when enabled */}
+                  {contentOptions.useRAG && (
+                    <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl">
+                      <div className="text-sm space-y-2">
+                        <div className="font-semibold text-blue-200 flex items-center gap-2">
+                          <span>💡</span>
+                          <span>Lợi ích của RAG:</span>
+                        </div>
+                        <ul className="space-y-1 text-blue-300/80 ml-6">
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-400 mt-0.5">✓</span>
+                            <span>Nội dung dựa trên tài liệu thực của công ty</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-400 mt-0.5">✓</span>
+                            <span>Có trích dẫn nguồn [1][2][3] để kiểm chứng</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-400 mt-0.5">✓</span>
+                            <span>Số liệu cụ thể và đáng tin cậy</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="text-green-400 mt-0.5">✓</span>
+                            <span>Giảm thiểu "hallucination" (AI bịa đặt)</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Submit Button */}
                 <button
-                  onClick={() => handleGenerateContent(showContentOptions)}
+                  onClick={() => handleGenerateDraft(showContentOptions)}
                   disabled={generatingContent !== null}
                   className="w-full px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {generatingContent !== null ? (
                     <>
                       <div className="spinner w-5 h-5 border-2" />
-                      <span>Đang tạo content...</span>
+                      <span>Đang tạo draft...</span>
                     </>
                   ) : (
                     <>
                       <FileText className="w-5 h-5" />
-                      <span>Tạo Content</span>
+                      <span>Tạo Draft Pack</span>
                     </>
                   )}
                 </button>

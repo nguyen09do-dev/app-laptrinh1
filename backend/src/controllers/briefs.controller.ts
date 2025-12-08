@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { briefsService } from '../services/briefs.service.js';
+import { briefsRAGService } from '../services/briefs-rag.service.js';
 
 /**
  * BriefsController - Handle HTTP requests for briefs
@@ -69,9 +70,15 @@ export class BriefsController {
 
   /**
    * POST /api/briefs/from-idea/:ideaId - Create brief from approved idea
+   * Query params: ?useRAG=true to enable RAG-enhanced generation
+   * Body (optional): { searchFilters: { author?, tags[], match_threshold?, match_count? } }
    */
   async createBriefFromIdea(
-    request: FastifyRequest<{ Params: { ideaId: string } }>,
+    request: FastifyRequest<{ 
+      Params: { ideaId: string };
+      Querystring: { useRAG?: string };
+      Body?: { searchFilters?: any };
+    }>,
     reply: FastifyReply
   ) {
     try {
@@ -84,14 +91,33 @@ export class BriefsController {
         });
       }
 
-      console.log(`📝 Creating brief from idea ${ideaId}`);
+      // Check if RAG is enabled (default: false for backward compatibility)
+      const useRAG = request.query.useRAG === 'true' || request.query.useRAG === '1';
+      const searchFilters = request.body?.searchFilters;
 
-      const brief = await briefsService.createBriefFromIdea(ideaId);
+      console.log(`📝 Creating brief from idea ${ideaId}${useRAG ? ' (RAG-enabled)' : ''}`);
+
+      let result;
+      if (useRAG) {
+        // Use RAG-enhanced service
+        const ragResult = await briefsRAGService.generateBriefWithRAG({
+          ideaId,
+          useRAG: true,
+          searchFilters,
+        });
+        result = {
+          ...ragResult.brief,
+          rag_context: ragResult.rag_context,
+        };
+      } else {
+        // Use traditional service (backward compatible)
+        result = await briefsService.createBriefFromIdea(ideaId);
+      }
 
       return reply.send({
         success: true,
-        data: brief,
-        message: 'Brief created successfully',
+        data: result,
+        message: `Brief created successfully${useRAG ? ' with RAG enhancement' : ''}`,
       });
     } catch (error) {
       console.error('Error creating brief:', error);

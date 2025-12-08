@@ -45,12 +45,9 @@ interface Content {
 
 export default function ContentPage() {
   const searchParams = useSearchParams();
-  const [briefsWithoutContent, setBriefsWithoutContent] = useState<Brief[]>([]);
   const [contents, setContents] = useState<Content[]>([]);
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [loading, setLoading] = useState(true);
-  const [generatingId, setGeneratingId] = useState<number | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterFormat, setFilterFormat] = useState<string>('all');
   const [filterIndustry, setFilterIndustry] = useState<string>('all');
@@ -60,22 +57,12 @@ export default function ContentPage() {
     try {
       setLoading(true);
 
-      // Fetch all briefs
-      const briefsRes = await fetch('http://localhost:3001/api/briefs');
-      const briefsData = await briefsRes.json();
-      const allBriefs = briefsData.data || [];
-
       // Fetch all contents
       const contentsRes = await fetch('http://localhost:3001/api/contents');
       const contentsData = await contentsRes.json();
       const allContents = contentsData.data || [];
 
       setContents(allContents);
-
-      // Find briefs that don't have content yet
-      const contentBriefIds = new Set(allContents.map((c: Content) => c.brief_id));
-      const briefsWithout = allBriefs.filter((b: Brief) => !contentBriefIds.has(b.id));
-      setBriefsWithoutContent(briefsWithout);
     } catch (error) {
       console.error('Error fetching data:', error);
       showToast.error('Không thể tải dữ liệu');
@@ -100,30 +87,6 @@ export default function ContentPage() {
       }
     }
   }, [searchParams, contents]);
-
-  const handleGenerateContent = async (briefId: number) => {
-    try {
-      setGeneratingId(briefId);
-      const response = await fetch(`http://localhost:3001/api/contents/from-brief/${briefId}`, {
-        method: 'POST',
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        await fetchData();
-        showToast.success('Đã tạo content thành công!');
-        setSuccessMessage(null);
-      } else {
-        showToast.error(data.error || 'Không thể tạo content');
-      }
-    } catch (error) {
-      console.error('Error generating content:', error);
-      showToast.error('Lỗi khi tạo content');
-    } finally {
-      setGeneratingId(null);
-    }
-  };
 
   const handleDeleteContent = async (id: number) => {
     if (!confirm('Bạn có chắc muốn xóa content này?')) return;
@@ -199,48 +162,6 @@ export default function ContentPage() {
           <h1 className="text-4xl font-bold text-white mb-2">📄 Content Management</h1>
           <p className="text-gray-300">Tạo và quản lý nội dung từ briefs</p>
         </motion.div>
-
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="mb-6 p-4 bg-green-500/20 border border-green-500/30 rounded-xl text-green-400"
-          >
-            {successMessage}
-          </motion.div>
-        )}
-
-        {/* Briefs without content */}
-        {briefsWithoutContent.length > 0 && (
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-white mb-4">📋 Briefs chưa có content</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {briefsWithoutContent.map((brief) => (
-                <motion.div
-                  key={brief.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 hover:border-purple-400/50 transition-all"
-                >
-                  <h3 className="text-lg font-semibold text-white mb-2">{brief.title}</h3>
-                  <p className="text-gray-300 text-sm mb-4 line-clamp-2">{brief.objective}</p>
-                  <button
-                    onClick={() => handleGenerateContent(brief.id)}
-                    disabled={generatingId === brief.id}
-                    className={`w-full px-4 py-2 rounded-lg font-medium transition-all ${
-                      generatingId === brief.id
-                        ? 'bg-gray-500/50 text-gray-300 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/50'
-                    }`}
-                  >
-                    {generatingId === brief.id ? '⏳ Đang tạo...' : '✨ Tạo Content'}
-                  </button>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Existing contents */}
         <div>

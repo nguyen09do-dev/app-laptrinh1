@@ -136,14 +136,14 @@ class LLMClient {
       throw new Error('Gemini client not initialized. Check GEMINI_API_KEY.');
     }
 
-    // Use the free and stable model: gemini-1.5-flash
-    let modelName = options.model || 'gemini-1.5-flash';
+    // Use the latest stable Gemini model
+    let modelName = options.model || 'gemini-1.5-flash-latest';
 
-    // Support common aliases - all map to free model
-    if (modelName === 'gemini-flash' || modelName === 'gemini-flash-latest') {
-      modelName = 'gemini-1.5-flash';
+    // Support common aliases
+    if (modelName === 'gemini-flash' || modelName === 'gemini-1.5-flash') {
+      modelName = 'gemini-1.5-flash-latest';
     } else if (modelName === 'gemini-pro' || modelName === 'gemini-pro-latest') {
-      modelName = 'gemini-1.5-flash'; // Use flash instead of pro (free)
+      modelName = 'gemini-1.5-flash-latest'; // Use flash instead of pro (free)
     }
 
     const temperature = options.temperature ?? 0.7;
@@ -211,14 +211,14 @@ class LLMClient {
       throw new Error('Gemini client not initialized. Check GEMINI_API_KEY.');
     }
 
-    // Use the free and stable model: gemini-1.5-flash
-    let modelName = options.model || 'gemini-1.5-flash';
+    // Use the latest stable Gemini model
+    let modelName = options.model || 'gemini-1.5-flash-latest';
 
-    // Support common aliases - all map to free model
-    if (modelName === 'gemini-flash' || modelName === 'gemini-flash-latest') {
-      modelName = 'gemini-1.5-flash';
+    // Support common aliases
+    if (modelName === 'gemini-flash' || modelName === 'gemini-1.5-flash') {
+      modelName = 'gemini-1.5-flash-latest';
     } else if (modelName === 'gemini-pro' || modelName === 'gemini-pro-latest') {
-      modelName = 'gemini-1.5-flash'; // Use flash instead of pro (free)
+      modelName = 'gemini-1.5-flash-latest'; // Use flash instead of pro (free)
     }
 
     const temperature = options.temperature ?? 0.7;

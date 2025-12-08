@@ -91,6 +91,11 @@ export interface CreateDraftInput {
   pack_id?: string;
   brief_id: number;
   audience?: string;
+  // RAG options
+  useRAG?: boolean;
+  wordCount?: number;
+  style?: string;
+  searchFilters?: any;
 }
 
 /**
@@ -206,8 +211,7 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
     // 3. Stream from LLM
     let fullContent = '';
     const modelsToTry = [
-      'gemini-1.5-flash',
-      'gemini-2.0-flash',
+      'gemini-1.5-flash-latest',
       'gpt-4o-mini',
     ];
 
@@ -361,7 +365,7 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
   async updatePackStatusWithValidation(
     packId: string,
     newStatus: PackStatus
-  ): Promise<{ success: boolean; data?: ContentPack; error?: string }> {
+  ): Promise<{ success: boolean; data?: ContentPack; error?: string; content?: any }> {
     // 1. Get current pack
     const pack = await this.getPackById(packId);
     if (!pack) {
@@ -381,7 +385,23 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
     }
 
     console.log(`✅ Pack ${packId} status changed: ${pack.status} → ${newStatus}`);
-    return { success: true, data: updated };
+
+    // 4. If transitioning to 'published', automatically create content
+    let createdContent = null;
+    if (newStatus === 'published') {
+      try {
+        // Import contents service dynamically to avoid circular dependency
+        const { contentsService } = await import('./contents.service.js');
+        createdContent = await contentsService.createContentFromPack(packId);
+        console.log(`✅ Auto-created content from pack ${packId}`);
+      } catch (error: any) {
+        console.error(`⚠️  Failed to auto-create content:`, error.message);
+        // Don't fail the status update if content creation fails
+        // User can manually create content later
+      }
+    }
+
+    return { success: true, data: updated, content: createdContent };
   }
 
   /**
@@ -395,6 +415,42 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
       current: pack.status,
       allowed: getAllowedNextStatuses(pack.status),
     };
+  }
+
+  /**
+   * Generate draft pack and wait for completion (non-streaming wrapper)
+   * This method wraps generateDraftStream and waits for completion
+   */
+  async generateDraftComplete(input: CreateDraftInput): Promise<ContentPack> {
+    const { brief_id, pack_id, audience, useRAG, wordCount, style, searchFilters } = input;
+    const packId = pack_id || randomUUID();
+
+    console.log(`📦 Generating draft pack (complete) for brief ${brief_id}`, {
+      packId,
+      useRAG,
+      wordCount,
+      style,
+    });
+
+    let fullContent = '';
+    let finalPack: ContentPack | null = null;
+
+    // Collect all chunks from the stream
+    for await (const event of this.generateDraftStream(input, { temperature: 0.7, maxTokens: 2000 })) {
+      if (event.type === 'chunk') {
+        fullContent += event.data.text || '';
+      } else if (event.type === 'done') {
+        finalPack = event.data as ContentPack;
+      } else if (event.type === 'error') {
+        throw new Error(event.data.error || 'Draft generation failed');
+      }
+    }
+
+    if (!finalPack) {
+      throw new Error('Draft generation did not complete successfully');
+    }
+
+    return finalPack;
   }
 
   /**

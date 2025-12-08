@@ -13,20 +13,32 @@ const BackgroundContext = createContext<BackgroundContextType | undefined>(undef
 
 export function BackgroundProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<BackgroundTheme>('aurora');
+  const [mounted, setMounted] = useState(false);
 
   // Load theme from localStorage on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('background-theme') as BackgroundTheme;
-    if (savedTheme && ['aurora', 'ocean', 'sunset'].includes(savedTheme)) {
-      setThemeState(savedTheme);
+    setMounted(true);
+    try {
+      const savedTheme = localStorage.getItem('background-theme') as BackgroundTheme;
+      if (savedTheme && ['aurora', 'ocean', 'sunset'].includes(savedTheme)) {
+        setThemeState(savedTheme);
+      }
+    } catch (error) {
+      console.warn('Failed to load background theme from localStorage:', error);
     }
   }, []);
 
   const setTheme = (newTheme: BackgroundTheme) => {
     setThemeState(newTheme);
-    localStorage.setItem('background-theme', newTheme);
+    try {
+      localStorage.setItem('background-theme', newTheme);
+    } catch (error) {
+      console.warn('Failed to save background theme to localStorage:', error);
+    }
   };
 
+  // Render immediately with default theme to avoid blank screen
+  // This prevents the app from being completely hidden during hydration
   return (
     <BackgroundContext.Provider value={{ theme, setTheme }}>
       {children}

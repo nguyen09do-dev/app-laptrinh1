@@ -593,7 +593,7 @@ export default function IdeasPage() {
         {error && (
           <div className="mb-8 p-4 bg-coral-500/10 border border-coral-500/30 rounded-xl text-coral-400 text-center">
             <span className="font-medium">⚠️ Lỗi: </span>
-            {error}
+            {error instanceof Error ? error.message : String(error)}
           </div>
         )}
 
@@ -997,7 +997,7 @@ export default function IdeasPage() {
                     )}
                   </div>
 
-                  {selectedIdea.implementation ? (
+                  {selectedIdea.implementation && selectedIdea.implementation.feasibility && selectedIdea.implementation.steps ? (
                     <div className="space-y-6">
                       {/* Flowmap visualization */}
                       <div>

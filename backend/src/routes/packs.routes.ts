@@ -46,12 +46,12 @@ export async function packsRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/packs/draft
    * Generate draft content with SSE streaming
-   * 
+   *
    * Body:
    *   - pack_id (optional): UUID for the pack, generates new if not provided
    *   - brief_id (required): ID of the brief to generate from
    *   - audience (optional): Custom audience override
-   * 
+   *
    * Response: Server-Sent Events (SSE) stream
    */
   fastify.post('/packs/draft', {
@@ -67,6 +67,33 @@ export async function packsRoutes(fastify: FastifyInstance) {
       },
     },
     handler: packsController.generateDraft.bind(packsController),
+  });
+
+  /**
+   * POST /api/packs/from-brief/:briefId
+   * Generate draft pack from brief (non-streaming, returns JSON)
+   * Body: { wordCount?: number; style?: string; useRAG?: boolean; searchFilters?: {...} }
+   */
+  fastify.post('/packs/from-brief/:briefId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          briefId: { type: 'string' },
+        },
+        required: ['briefId'],
+      },
+      body: {
+        type: 'object',
+        properties: {
+          wordCount: { type: 'number' },
+          style: { type: 'string' },
+          useRAG: { type: 'boolean' },
+          searchFilters: { type: 'object' },
+        },
+      },
+    },
+    handler: packsController.generateDraftFromBrief.bind(packsController),
   });
 
   /**

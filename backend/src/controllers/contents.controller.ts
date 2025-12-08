@@ -1,5 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { contentsService } from '../services/contents.service.js';
+import { contentsRAGService } from '../services/contents-rag.service.js';
 
 export class ContentsController {
   async getAllContents(request: FastifyRequest, reply: FastifyReply) {
@@ -31,9 +32,13 @@ export class ContentsController {
     }
   }
 
+  /**
+   * POST /api/contents/from-brief/:briefId - Generate content from brief
+   * Body: { wordCount?: number; style?: string; useRAG?: boolean; searchFilters?: {...} }
+   */
   async generateContentFromBrief(request: FastifyRequest<{
     Params: { briefId: string };
-    Body: { wordCount?: number; style?: string }
+    Body?: { wordCount?: number; style?: string; useRAG?: boolean; searchFilters?: any }
   }>, reply: FastifyReply) {
     try {
       const briefId = parseInt(request.params.briefId);
@@ -41,12 +46,35 @@ export class ContentsController {
         return reply.status(400).send({ success: false, error: 'Invalid brief ID' });
       }
 
-      const { wordCount, style } = request.body || {};
+      const { wordCount, style, useRAG = false, searchFilters } = request.body || {};
+      // Check if RAG is enabled (default: false for backward compatibility)
 
-      console.log(`📝 Generating content from brief ${briefId} with options:`, { wordCount, style });
-      const content = await contentsService.generateContentFromBrief(briefId, { wordCount, style });
+      console.log(`📝 Generating content from brief ${briefId}${useRAG ? ' (RAG-enabled)' : ''} with options:`, { wordCount, style });
 
-      return reply.send({ success: true, data: content, message: 'Content generated successfully' });
+      let result;
+      if (useRAG) {
+        // Use RAG-enhanced service
+        const ragResult = await contentsRAGService.generateContentWithRAG({
+          briefId,
+          wordCount,
+          style,
+          useRAG: true,
+          searchFilters,
+        });
+        result = {
+          ...ragResult.content,
+          rag_context: ragResult.rag_context,
+        };
+      } else {
+        // Use traditional service (backward compatible)
+        result = await contentsService.generateContentFromBrief(briefId, { wordCount, style });
+      }
+
+      return reply.send({ 
+        success: true, 
+        data: result, 
+        message: `Content generated successfully${useRAG ? ' with RAG enhancement' : ''}` 
+      });
     } catch (error) {
       console.error('Error generating content:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';

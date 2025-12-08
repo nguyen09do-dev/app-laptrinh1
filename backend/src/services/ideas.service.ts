@@ -30,7 +30,18 @@ export class IdeasService {
     const result = await db.query(
       'SELECT * FROM ideas ORDER BY created_at DESC'
     );
-    return result.rows;
+
+    // Parse implementation strings to objects
+    return result.rows.map(idea => {
+      if (idea.implementation && typeof idea.implementation === 'string') {
+        try {
+          idea.implementation = JSON.parse(idea.implementation);
+        } catch (e) {
+          console.error(`Failed to parse implementation for idea ${idea.id}:`, e);
+        }
+      }
+      return idea;
+    });
   }
 
   /**
@@ -38,7 +49,18 @@ export class IdeasService {
    */
   async getIdeaById(id: number): Promise<Idea | null> {
     const result = await db.query('SELECT * FROM ideas WHERE id = $1', [id]);
-    return result.rows[0] || null;
+    const idea = result.rows[0];
+
+    // Parse implementation string to object
+    if (idea && idea.implementation && typeof idea.implementation === 'string') {
+      try {
+        idea.implementation = JSON.parse(idea.implementation);
+      } catch (e) {
+        console.error(`Failed to parse implementation for idea ${id}:`, e);
+      }
+    }
+
+    return idea || null;
   }
 
   /**
@@ -172,7 +194,7 @@ export class IdeasService {
 
     // Thử Gemini 1.5 Flash (free) trước, nếu fail thì fallback sang OpenAI
     const providers = [
-      { provider: AIProvider.GEMINI, model: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (Free)' },
+      { provider: AIProvider.GEMINI, model: 'gemini-1.5-flash-latest', name: 'Gemini 1.5 Flash (Free)' },
       { provider: AIProvider.OPENAI, model: 'gpt-4o-mini', name: 'OpenAI GPT-4o-mini' }
     ];
 
@@ -373,7 +395,18 @@ Yêu cầu:
         );
 
         console.log(`✅ Implementation plan generated for idea ${ideaId}`);
-        return result.rows[0] || null;
+
+        // Parse implementation string back to object for response
+        const idea = result.rows[0];
+        if (idea && idea.implementation && typeof idea.implementation === 'string') {
+          try {
+            idea.implementation = JSON.parse(idea.implementation);
+          } catch (e) {
+            console.error('Failed to parse implementation:', e);
+          }
+        }
+
+        return idea || null;
 
       } catch (error) {
         lastError = error as Error;

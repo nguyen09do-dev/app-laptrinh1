@@ -60,3 +60,4 @@ COMMENT ON COLUMN content_packs.status IS 'Workflow status: draft, review, appro
 COMMENT ON COLUMN content_packs.updated_at IS 'Auto-updated on each modification';
 
 
+

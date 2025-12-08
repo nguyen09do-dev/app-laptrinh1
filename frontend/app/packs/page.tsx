@@ -108,10 +108,16 @@ export default function PacksPage() {
   const [selectedBrief, setSelectedBrief] = useState<Brief | null>(null);
   const [selectedPack, setSelectedPack] = useState<ContentPack | null>(null);
 
-  // Streaming state
+  // Generation state
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
-  const [streamingPackId, setStreamingPackId] = useState<string | null>(null);
+
+  // Draft options modal state
+  const [showDraftOptions, setShowDraftOptions] = useState<number | null>(null);
+  const [draftOptions, setDraftOptions] = useState({
+    wordCount: 800,
+    style: 'professional',
+    useRAG: false,
+  });
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -154,86 +160,43 @@ export default function PacksPage() {
     fetchData();
   }, [fetchData]);
 
-  // Generate draft with SSE streaming
+  // Generate draft with options (non-streaming, JSON response)
   const handleGenerateDraft = async (briefId: number) => {
     setIsStreaming(true);
-    setStreamingContent('');
-    setStreamingPackId(null);
+    setShowDraftOptions(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/packs/draft', {
+      const response = await fetch(`http://localhost:3001/api/packs/from-brief/${briefId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief_id: briefId }),
+        body: JSON.stringify({
+          wordCount: draftOptions.wordCount,
+          style: draftOptions.style,
+          useRAG: draftOptions.useRAG,
+        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to start streaming');
+        throw new Error('Failed to generate draft');
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No reader available');
-      }
+      const data = await response.json();
 
-      const decoder = new TextDecoder();
-      let buffer = '';
+      if (data.success) {
+        showToast.success(`Draft đã tạo thành công! (${data.data.word_count} từ)`);
+        await fetchData();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        // Process SSE events
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        let currentEvent = '';
-        for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            currentEvent = line.slice(7);
-          } else if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            try {
-              const parsed = JSON.parse(data);
-
-              switch (currentEvent) {
-                case 'chunk':
-                  setStreamingContent((prev) => prev + parsed.text);
-                  if (parsed.pack_id) {
-                    setStreamingPackId(parsed.pack_id);
-                  }
-                  break;
-                case 'done':
-                  showToast.success(`Draft hoàn thành! (${parsed.word_count} từ)`);
-                  await fetchData();
-                  // Select the newly created pack
-                  if (parsed.pack_id) {
-                    const newPack = await fetch(`http://localhost:3001/api/packs/${parsed.pack_id}`);
-                    const packData = await newPack.json();
-                    if (packData.success) {
-                      setSelectedPack(packData.data);
-                    }
-                  }
-                  break;
-                case 'error':
-                  showToast.error(parsed.error || 'Lỗi tạo draft');
-                  break;
-              }
-            } catch (e) {
-              // Ignore parse errors for partial data
-            }
-          }
-        }
+        // Auto-open the newly created pack in modal
+        setSelectedPack(data.data);
+      } else {
+        showToast.error(data.error || 'Lỗi tạo draft');
       }
     } catch (error: unknown) {
-      console.error('SSE error:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Lỗi streaming';
+      console.error('Error generating draft:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Lỗi tạo draft';
       showToast.error(errorMsg);
     } finally {
       setIsStreaming(false);
-      setSelectedBrief(null);
     }
   };
 
@@ -341,30 +304,8 @@ export default function PacksPage() {
             <Package className="w-10 h-10 text-purple-400" />
             Content Packs
           </h1>
-          <p className="text-gray-300">Tạo và quản lý draft content với AI streaming</p>
+          <p className="text-gray-300">Tạo và quản lý draft content với tùy chọn RAG & style</p>
         </motion.div>
-
-        {/* Streaming Preview */}
-        <AnimatePresence>
-          {isStreaming && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-8"
-            >
-              <div className="bg-white/5 backdrop-blur-lg rounded-xl border border-purple-500/30 overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/10 bg-purple-500/10 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
-                  <span className="font-medium text-white">Đang tạo draft...</span>
-                </div>
-                <div className="p-4" style={{ maxHeight: '400px', overflow: 'auto' }}>
-                  <DraftEditor content={streamingContent} isStreaming={true} />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Briefs without packs */}
@@ -395,7 +336,7 @@ export default function PacksPage() {
                       {brief.objective}
                     </p>
                     <button
-                      onClick={() => handleGenerateDraft(brief.id)}
+                      onClick={() => setShowDraftOptions(brief.id)}
                       disabled={isStreaming}
                       className={`w-full px-4 py-2 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${
                         isStreaming
@@ -403,17 +344,8 @@ export default function PacksPage() {
                           : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30'
                       }`}
                     >
-                      {isStreaming ? (
-                        <>
-                          <RefreshCw className="w-4 h-4 animate-spin" />
-                          Đang tạo...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          Tạo Draft
-                        </>
-                      )}
+                      <Sparkles className="w-4 h-4" />
+                      Tạo Draft
                     </button>
                   </motion.div>
                 ))
@@ -623,6 +555,151 @@ export default function PacksPage() {
               </motion.div>
             );
           })()}
+        </AnimatePresence>
+
+        {/* Draft Options Modal */}
+        <AnimatePresence>
+          {showDraftOptions && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              onClick={() => setShowDraftOptions(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl w-full max-w-md border border-purple-500/30"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="px-6 py-4 border-b border-white/10">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-6 h-6 text-purple-400" />
+                    Tùy chọn tạo Draft
+                  </h2>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Cấu hình các tham số cho nội dung
+                  </p>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  {/* Word Count Slider */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">
+                      Độ dài: {draftOptions.wordCount} từ
+                    </label>
+                    <input
+                      type="range"
+                      min="300"
+                      max="2000"
+                      step="100"
+                      value={draftOptions.wordCount}
+                      onChange={(e) =>
+                        setDraftOptions({ ...draftOptions, wordCount: parseInt(e.target.value) })
+                      }
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>300</span>
+                      <span>2000</span>
+                    </div>
+                  </div>
+
+                  {/* Style Selector */}
+                  <div>
+                    <label className="block text-white font-medium mb-2">Phong cách</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['professional', 'casual', 'academic'].map((style) => (
+                        <button
+                          key={style}
+                          onClick={() => setDraftOptions({ ...draftOptions, style })}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            draftOptions.style === style
+                              ? 'bg-purple-500 text-white'
+                              : 'bg-gray-700/50 text-gray-300 hover:bg-gray-700'
+                          }`}
+                        >
+                          {style === 'professional'
+                            ? 'Chuyên nghiệp'
+                            : style === 'casual'
+                            ? 'Thân thiện'
+                            : 'Học thuật'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* RAG Toggle */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-white font-medium">RAG - Knowledge Base</label>
+                      <button
+                        onClick={() => setDraftOptions({ ...draftOptions, useRAG: !draftOptions.useRAG })}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          draftOptions.useRAG ? 'bg-purple-500' : 'bg-gray-600'
+                        }`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            draftOptions.useRAG ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {draftOptions.useRAG ? (
+                      <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-3 space-y-1">
+                        <p className="text-purple-300 text-sm font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-4 h-4" />
+                          RAG được bật
+                        </p>
+                        <ul className="text-gray-400 text-xs space-y-0.5 ml-5">
+                          <li>✓ Nội dung dựa trên tài liệu thực</li>
+                          <li>✓ Có trích dẫn nguồn [1][2][3]</li>
+                          <li>✓ Giảm thiểu hallucination</li>
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-gray-400 text-sm">
+                        Sử dụng kiến thức tổng quát của AI
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="px-6 py-4 border-t border-white/10 flex items-center justify-between">
+                  <button
+                    onClick={() => setShowDraftOptions(null)}
+                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    onClick={() => handleGenerateDraft(showDraftOptions)}
+                    disabled={isStreaming}
+                    className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${
+                      isStreaming
+                        ? 'bg-gray-500/30 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/30'
+                    }`}
+                  >
+                    {isStreaming ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Đang tạo...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        Tạo Draft Pack
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>

@@ -8,7 +8,11 @@ interface ContentRendererProps {
 }
 
 export function ContentRenderer({ content }: ContentRendererProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['MỞ ĐẦU', 'THÂN BÀI', 'KẾT LUẬN']));
+  // Parse markdown sections and expand all by default
+  const sections = parseContent(content);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(sections.map(s => s.title))
+  );
 
   const toggleSection = (sectionName: string) => {
     const newExpanded = new Set(expandedSections);
@@ -20,53 +24,149 @@ export function ContentRenderer({ content }: ContentRendererProps) {
     setExpandedSections(newExpanded);
   };
 
-  // Parse content into major sections only (MỞ ĐẦU, THÂN BÀI, KẾT LUẬN)
-  const parseContent = (text: string) => {
-    // Remove ### and ## markers from the content
-    text = text.replace(/^###\s+/gm, '').replace(/^##\s+/gm, '');
+  // Parse content into sections based on markdown headers (## and ###)
+  function parseContent(text: string) {
+    const sections: Array<{ title: string; content: string; level: number }> = [];
 
-    const sections: Array<{ title: string; content: string }> = [];
+    // Split by ## headers (main sections)
+    const h2Regex = /^##\s+(.+)$/gm;
+    const parts: Array<{ title: string; content: string; index: number }> = [];
 
-    // Find major sections
-    const moThanMatch = text.match(/MỞ ĐẦU([\s\S]*?)(?=THÂN BÀI|KẾT LUẬN|$)/i);
-    const thanBaiMatch = text.match(/THÂN BÀI([\s\S]*?)(?=KẾT LUẬN|$)/i);
-    const ketLuanMatch = text.match(/KẾT LUẬN([\s\S]*?)$/i);
+    let match;
+    let lastIndex = 0;
 
-    if (moThanMatch) {
-      sections.push({ title: 'MỞ ĐẦU', content: moThanMatch[1].trim() });
+    while ((match = h2Regex.exec(text)) !== null) {
+      if (lastIndex < match.index) {
+        // Content before first header
+        const beforeContent = text.substring(lastIndex, match.index).trim();
+        if (beforeContent) {
+          parts.push({
+            title: 'Giới thiệu',
+            content: beforeContent,
+            index: lastIndex
+          });
+        }
+      }
+
+      parts.push({
+        title: match[1].trim(),
+        content: '',
+        index: match.index
+      });
+
+      lastIndex = match.index + match[0].length;
     }
-    if (thanBaiMatch) {
-      sections.push({ title: 'THÂN BÀI', content: thanBaiMatch[1].trim() });
-    }
-    if (ketLuanMatch) {
-      sections.push({ title: 'KẾT LUẬN', content: ketLuanMatch[1].trim() });
+
+    // Extract content for each section
+    for (let i = 0; i < parts.length; i++) {
+      const start = parts[i].index + (text.substring(parts[i].index).indexOf('\n') + 1 || 0);
+      const end = i < parts.length - 1 ? parts[i + 1].index : text.length;
+      parts[i].content = text.substring(start, end).trim();
     }
 
-    // If no sections found, return entire content as one section
-    if (sections.length === 0) {
-      sections.push({ title: 'Nội dung', content: text });
+    // If no headers found, treat entire content as one section
+    if (parts.length === 0) {
+      sections.push({
+        title: 'Nội dung',
+        content: text.trim(),
+        level: 2
+      });
+    } else {
+      parts.forEach(part => {
+        sections.push({
+          title: part.title,
+          content: part.content,
+          level: 2
+        });
+      });
     }
 
     return sections;
-  };
+  }
 
   const formatContent = (text: string) => {
-    // Remove ** bold markers
-    text = text.replace(/\*\*(.+?)\*\*/g, '$1');
-
-    // Remove * italic markers
-    text = text.replace(/\*(.+?)\*/g, '$1');
-
-    // Convert bullet points to proper list items
     const lines = text.split('\n');
     const formatted: JSX.Element[] = [];
     let listItems: string[] = [];
     let numberedItems: string[] = [];
+    let lineIndex = 0;
+
+    const renderInline = (text: string) => {
+      // Process bold **text**
+      const parts: (string | JSX.Element)[] = [];
+      const boldRegex = /\*\*(.+?)\*\*/g;
+      let lastIndex = 0;
+      let match;
+
+      while ((match = boldRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+          parts.push(text.substring(lastIndex, match.index));
+        }
+        parts.push(<strong key={match.index} className="font-bold text-gray-900 dark:text-white">{match[1]}</strong>);
+        lastIndex = match.index + match[0].length;
+      }
+
+      if (lastIndex < text.length) {
+        parts.push(text.substring(lastIndex));
+      }
+
+      return parts.length > 0 ? parts : text;
+    };
+
+    const flushLists = (idx: number) => {
+      if (listItems.length > 0) {
+        formatted.push(
+          <ul key={`ul-${idx}`} className="list-disc list-outside space-y-2 my-4 ml-6 text-gray-700 dark:text-gray-300">
+            {listItems.map((item, i) => (
+              <li key={i}>{renderInline(item)}</li>
+            ))}
+          </ul>
+        );
+        listItems = [];
+      }
+
+      if (numberedItems.length > 0) {
+        formatted.push(
+          <ol key={`ol-${idx}`} className="list-decimal list-outside space-y-2 my-4 ml-6 text-gray-700 dark:text-gray-300">
+            {numberedItems.map((item, i) => (
+              <li key={i}>{renderInline(item)}</li>
+            ))}
+          </ol>
+        );
+        numberedItems = [];
+      }
+    };
 
     lines.forEach((line, idx) => {
-      // Check for bullet points
-      if (line.trim().match(/^[•\-\*]\s+/)) {
-        const item = line.trim().replace(/^[•\-\*]\s+/, '');
+      lineIndex = idx;
+
+      // Check for ### subheadings
+      if (line.trim().match(/^###\s+/)) {
+        flushLists(idx);
+        const heading = line.trim().replace(/^###\s+/, '');
+        formatted.push(
+          <h4 key={`h4-${idx}`} className="text-lg font-bold text-gray-900 dark:text-white mt-6 mb-3">
+            {heading}
+          </h4>
+        );
+        return;
+      }
+
+      // Check for #### subheadings
+      if (line.trim().match(/^####\s+/)) {
+        flushLists(idx);
+        const heading = line.trim().replace(/^####\s+/, '');
+        formatted.push(
+          <h5 key={`h5-${idx}`} className="text-base font-semibold text-gray-800 dark:text-gray-200 mt-4 mb-2">
+            {heading}
+          </h5>
+        );
+        return;
+      }
+
+      // Check for bullet points (-, *, •)
+      if (line.trim().match(/^[-\*•]\s+/)) {
+        const item = line.trim().replace(/^[-\*•]\s+/, '');
         listItems.push(item);
         return;
       }
@@ -78,65 +178,24 @@ export function ContentRenderer({ content }: ContentRendererProps) {
         return;
       }
 
-      // Flush bullet list
-      if (listItems.length > 0) {
-        formatted.push(
-          <ul key={`ul-${idx}`} className="list-disc list-inside space-y-2 my-4 text-gray-700 dark:text-gray-300">
-            {listItems.map((item, i) => (
-              <li key={i} className="ml-4">{item}</li>
-            ))}
-          </ul>
-        );
-        listItems = [];
-      }
-
-      // Flush numbered list
-      if (numberedItems.length > 0) {
-        formatted.push(
-          <ol key={`ol-${idx}`} className="list-decimal list-inside space-y-2 my-4 text-gray-700 dark:text-gray-300">
-            {numberedItems.map((item, i) => (
-              <li key={i} className="ml-4">{item}</li>
-            ))}
-          </ol>
-        );
-        numberedItems = [];
-      }
+      // Flush lists before paragraph
+      flushLists(idx);
 
       // Regular paragraph
       if (line.trim()) {
         formatted.push(
-          <p key={`p-${idx}`} className="mb-4 text-gray-800 dark:text-gray-200 leading-relaxed">
-            {line}
+          <p key={`p-${idx}`} className="mb-3 text-gray-800 dark:text-gray-200 leading-relaxed">
+            {renderInline(line)}
           </p>
         );
       }
     });
 
     // Flush remaining lists
-    if (listItems.length > 0) {
-      formatted.push(
-        <ul key="ul-final" className="list-disc list-inside space-y-2 my-4 text-gray-700 dark:text-gray-300">
-          {listItems.map((item, i) => (
-            <li key={i} className="ml-4">{item}</li>
-          ))}
-        </ul>
-      );
-    }
-
-    if (numberedItems.length > 0) {
-      formatted.push(
-        <ol key="ol-final" className="list-decimal list-inside space-y-2 my-4 text-gray-700 dark:text-gray-300">
-          {numberedItems.map((item, i) => (
-            <li key={i} className="ml-4">{item}</li>
-          ))}
-        </ol>
-      );
-    }
+    flushLists(lineIndex + 1);
 
     return formatted;
   };
-
-  const sections = parseContent(content);
 
   return (
     <div className="space-y-4">
