@@ -72,6 +72,17 @@ export function getAllowedNextStatuses(current: PackStatus): PackStatus[] {
 }
 
 /**
+ * Content derivatives interface
+ */
+export interface ContentDerivatives {
+  twitter_thread: string[];
+  linkedin: string;
+  email: string;
+  blog_summary: string;
+  seo_description: string;
+}
+
+/**
  * ContentPack entity interface
  */
 export interface ContentPack {
@@ -80,6 +91,7 @@ export interface ContentPack {
   draft_content: string | null;
   word_count: number;
   status: PackStatus;
+  derivatives: ContentDerivatives | null;
   created_at: Date;
   updated_at: Date;
 }

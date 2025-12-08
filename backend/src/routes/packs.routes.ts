@@ -1,9 +1,11 @@
 import { FastifyInstance } from 'fastify';
 import { packsController } from '../controllers/packs.controller.js';
+import { derivativesController } from '../controllers/derivatives.controller.js';
 
 /**
  * Packs Routes - Endpoints for managing content packs
  * Includes SSE streaming endpoint for draft generation
+ * Includes Multi-platform Derivatives endpoints
  */
 export async function packsRoutes(fastify: FastifyInstance) {
   /**
@@ -180,6 +182,170 @@ export async function packsRoutes(fastify: FastifyInstance) {
       },
     },
     handler: packsController.getAllowedStatuses.bind(packsController),
+  });
+
+  // ==========================================
+  // DERIVATIVES ENDPOINTS
+  // Multi-platform content derivatives
+  // ==========================================
+
+  /**
+   * POST /api/packs/derivatives
+   * Generate multi-platform derivatives from a pack's draft content
+   * 
+   * Body:
+   *   - pack_id (required): UUID of the content pack
+   *   - language (optional): Output language (vi, en, etc.)
+   * 
+   * Generates:
+   *   - twitter_thread: 10 tweets
+   *   - linkedin: LinkedIn post
+   *   - email: Email newsletter
+   *   - blog_summary: ~200 word summary
+   *   - seo_description: Short SEO description
+   */
+  fastify.post('/packs/derivatives', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          pack_id: { type: 'string', format: 'uuid' },
+          language: { type: 'string', default: 'vi' },
+        },
+        required: ['pack_id'],
+      },
+      response: {
+        200: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean' },
+            data: {
+              type: 'object',
+              properties: {
+                pack_id: { type: 'string' },
+                derivatives: {
+                  type: 'object',
+                  properties: {
+                    twitter_thread: { type: 'array', items: { type: 'string' } },
+                    linkedin: { type: 'string' },
+                    email: { type: 'string' },
+                    blog_summary: { type: 'string' },
+                    seo_description: { type: 'string' },
+                  },
+                },
+                version_id: { type: 'string' },
+              },
+            },
+            message: { type: 'string' },
+          },
+        },
+      },
+    },
+    handler: derivativesController.generateDerivatives.bind(derivativesController),
+  });
+
+  /**
+   * GET /api/packs/:packId/derivatives
+   * Get derivatives for a pack
+   */
+  fastify.get('/packs/:packId/derivatives', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+        },
+        required: ['packId'],
+      },
+    },
+    handler: derivativesController.getDerivatives.bind(derivativesController),
+  });
+
+  /**
+   * GET /api/packs/:packId/derivatives/export
+   * Export derivatives in JSON or Markdown format
+   * 
+   * Query params:
+   *   - format: 'json' (default) or 'md'
+   */
+  fastify.get('/packs/:packId/derivatives/export', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+        },
+        required: ['packId'],
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          format: { type: 'string', enum: ['json', 'md'], default: 'json' },
+        },
+      },
+    },
+    handler: derivativesController.exportDerivatives.bind(derivativesController),
+  });
+
+  /**
+   * GET /api/packs/:packId/derivatives/versions
+   * Get derivative version history
+   * 
+   * Query params:
+   *   - type: Filter by derivative type (optional)
+   */
+  fastify.get('/packs/:packId/derivatives/versions', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+        },
+        required: ['packId'],
+      },
+      querystring: {
+        type: 'object',
+        properties: {
+          type: { 
+            type: 'string', 
+            enum: ['twitter_thread', 'linkedin', 'email', 'blog_summary', 'seo_description', 'all'],
+          },
+        },
+      },
+    },
+    handler: derivativesController.getDerivativeVersions.bind(derivativesController),
+  });
+
+  /**
+   * POST /api/packs/:packId/derivatives/regenerate
+   * Regenerate a specific derivative type
+   * 
+   * Body:
+   *   - type: Derivative type to regenerate
+   *   - language: Output language (optional)
+   */
+  fastify.post('/packs/:packId/derivatives/regenerate', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+        },
+        required: ['packId'],
+      },
+      body: {
+        type: 'object',
+        properties: {
+          type: { 
+            type: 'string',
+            enum: ['twitter_thread', 'linkedin', 'email', 'blog_summary', 'seo_description'],
+          },
+          language: { type: 'string', default: 'vi' },
+        },
+        required: ['type'],
+      },
+    },
+    handler: derivativesController.regenerateDerivative.bind(derivativesController),
   });
 }
 
