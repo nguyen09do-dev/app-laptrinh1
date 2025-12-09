@@ -270,6 +270,33 @@ export default function ContentStudioPage() {
     }
   };
 
+  // Save draft content
+  const handleSaveDraft = async (packId: string, newContent: string) => {
+    try {
+      const response = await fetch(`http://localhost:3001/api/packs/${packId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft_content: newContent }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        showToast.success('Draft đã được lưu!');
+        await fetchData();
+        if (selectedPack?.pack_id === packId) {
+          setSelectedPack(data.data);
+        }
+      } else {
+        showToast.error(data.error || 'Không thể lưu draft');
+      }
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      showToast.error('Lỗi lưu draft');
+      throw error;
+    }
+  };
+
   // Publish pack to Content
   const handlePublishToContent = async (packId: string) => {
     try {
@@ -592,6 +619,8 @@ export default function ContentStudioPage() {
                       content={selectedPack.draft_content || ''}
                       isStreaming={false}
                       wordCount={selectedPack.word_count || 0}
+                      packId={selectedPack.pack_id}
+                      onSave={(newContent) => handleSaveDraft(selectedPack.pack_id, newContent)}
                     />
 
                     <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/10">
@@ -875,4 +904,5 @@ export default function ContentStudioPage() {
     </div>
   );
 }
+
 

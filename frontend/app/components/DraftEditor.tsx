@@ -1,16 +1,18 @@
 'use client';
 
-import { useRef, useEffect, ReactNode } from 'react';
+import { useRef, useEffect, ReactNode, useState } from 'react';
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion } from 'framer-motion';
-import { Loader2, FileText, Check } from 'lucide-react';
+import { Loader2, FileText, Check, Edit2, Save, X } from 'lucide-react';
 
 interface DraftEditorProps {
   content: string;
   isStreaming: boolean;
   wordCount?: number;
   onContentChange?: (content: string) => void;
+  packId?: string;
+  onSave?: (content: string) => Promise<void>;
 }
 
 // Helper to safely render children (avoid rendering objects)
@@ -130,14 +132,24 @@ const markdownComponents: Components = {
 };
 
 /**
- * DraftEditor - Markdown renderer with real-time streaming support
+ * DraftEditor - Markdown renderer with real-time streaming support and edit mode
  */
 export function DraftEditor({
   content,
   isStreaming,
   wordCount,
+  packId,
+  onSave,
 }: DraftEditorProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(content);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync edited content when prop changes
+  useEffect(() => {
+    setEditedContent(content);
+  }, [content]);
 
   // Auto-scroll to bottom during streaming
   useEffect(() => {
@@ -147,7 +159,30 @@ export function DraftEditor({
   }, [content, isStreaming]);
 
   // Calculate word count if not provided
-  const calculatedWordCount = wordCount || content.trim().split(/\s+/).filter(w => w.length > 0).length;
+  const displayContent = isEditing ? editedContent : content;
+  const calculatedWordCount = wordCount || displayContent.trim().split(/\s+/).filter(w => w.length > 0).length;
+
+  const handleSave = async () => {
+    if (!onSave || editedContent === content) {
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await onSave(editedContent);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditedContent(content);
+    setIsEditing(false);
+  };
 
   return (
     <div className="relative flex flex-col h-full min-h-[400px] rounded-xl border border-white/10 bg-gradient-to-br from-gray-900/50 to-gray-800/50 backdrop-blur-lg overflow-hidden">
@@ -155,7 +190,9 @@ export function DraftEditor({
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-medium text-gray-200">Draft Content</span>
+          <span className="text-sm font-medium text-gray-200">
+            {isEditing ? 'Edit Draft' : 'Draft Content'}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           {calculatedWordCount > 0 && (
@@ -172,6 +209,43 @@ export function DraftEditor({
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-xs font-medium">Đang tạo...</span>
             </motion.div>
+          ) : isEditing ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleCancel}
+                disabled={isSaving}
+                className="flex items-center gap-1 px-3 py-1.5 bg-gray-500/20 text-gray-300 hover:bg-gray-500/30 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <X className="w-3 h-3" />
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || editedContent === content}
+                className="flex items-center gap-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Save className="w-3 h-3" />
+                )}
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          ) : content.length > 0 && onSave ? (
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 text-emerald-400">
+                <Check className="w-4 h-4" />
+                <span className="text-xs font-medium">Hoàn thành</span>
+              </div>
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded-lg text-xs font-medium transition-colors"
+              >
+                <Edit2 className="w-3 h-3" />
+                Edit
+              </button>
+            </div>
           ) : content.length > 0 ? (
             <div className="flex items-center gap-1 text-emerald-400">
               <Check className="w-4 h-4" />
@@ -186,19 +260,27 @@ export function DraftEditor({
         ref={contentRef}
         className="flex-1 overflow-y-auto p-6 scroll-smooth"
       >
-        {content.length === 0 && !isStreaming ? (
+        {displayContent.length === 0 && !isStreaming ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <FileText className="w-12 h-12 mb-3 opacity-50" />
             <p className="text-sm">Chưa có nội dung draft</p>
             <p className="text-xs mt-1">Nhấn &quot;Tạo Draft&quot; để bắt đầu</p>
           </div>
+        ) : isEditing ? (
+          <textarea
+            value={editedContent}
+            onChange={(e) => setEditedContent(e.target.value)}
+            className="w-full h-full bg-transparent text-gray-200 resize-none outline-none border-none font-mono text-sm leading-relaxed"
+            placeholder="Enter markdown content..."
+            autoFocus
+          />
         ) : (
           <div className="prose prose-invert prose-sm max-w-none">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={markdownComponents}
             >
-              {content}
+              {displayContent}
             </ReactMarkdown>
 
             {/* Streaming cursor indicator */}
