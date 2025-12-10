@@ -17,17 +17,17 @@ interface Brief {
   title: string;
   objective: string;
   target_audience: string;
-  key_messages: string[];
+  key_messages?: string[] | null;
   tone_style: string | null;
-  content_structure: {
+  content_structure?: {
     sections: Array<{
       name: string;
       wordCount: number;
       description: string;
     }>;
     totalWordCount: number;
-  };
-  seo_keywords: string[];
+  } | null;
+  seo_keywords?: string[] | null;
   status: string;
   created_at: string;
   idea_title?: string;
@@ -482,11 +482,11 @@ export default function BriefsPage() {
                     </div>
                     <div>
                       <span className="text-midnight-500">SEO Keywords:</span>
-                      <p className="text-midnight-200">{brief.seo_keywords.join(', ')}</p>
+                      <p className="text-midnight-200">{brief.seo_keywords && brief.seo_keywords.length > 0 ? brief.seo_keywords.join(', ') : 'N/A'}</p>
                     </div>
                     <div>
                       <span className="text-midnight-500">Word Count:</span>
-                      <p className="text-midnight-200">{brief.content_structure.totalWordCount} từ</p>
+                      <p className="text-midnight-200">{brief.content_structure?.totalWordCount || 'N/A'} {brief.content_structure?.totalWordCount ? 'từ' : ''}</p>
                     </div>
                   </div>
                 </div>
@@ -537,51 +537,57 @@ export default function BriefsPage() {
                   <p className="text-midnight-300">{selectedBrief.target_audience}</p>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold text-midnight-200 mb-2">💬 Key Messages</h3>
-                  <ul className="list-disc list-inside space-y-1 text-midnight-300">
-                    {selectedBrief.key_messages.map((msg, idx) => (
-                      <li key={idx}>{msg}</li>
-                    ))}
-                  </ul>
-                </div>
+                {selectedBrief.key_messages && selectedBrief.key_messages.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-midnight-200 mb-2">💬 Key Messages</h3>
+                    <ul className="list-disc list-inside space-y-1 text-midnight-300">
+                      {selectedBrief.key_messages.map((msg, idx) => (
+                        <li key={idx}>{msg}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="font-semibold text-midnight-200 mb-2">🎨 Tone & Style</h3>
                   <p className="text-midnight-300">{selectedBrief.tone_style}</p>
                 </div>
 
-                <div>
-                  <h3 className="font-semibold text-midnight-200 mb-2">📝 Content Structure</h3>
-                  <div className="space-y-3">
-                    {selectedBrief.content_structure.sections.map((section, idx) => (
-                      <div key={idx} className="p-4 bg-midnight-900/30 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-midnight-100">{section.name}</h4>
-                          <span className="text-sm text-midnight-400">{section.wordCount} từ</span>
+                {selectedBrief.content_structure && selectedBrief.content_structure.sections && selectedBrief.content_structure.sections.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-midnight-200 mb-2">📝 Content Structure</h3>
+                    <div className="space-y-3">
+                      {selectedBrief.content_structure.sections.map((section, idx) => (
+                        <div key={idx} className="p-4 bg-midnight-900/30 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-midnight-100">{section.name}</h4>
+                            <span className="text-sm text-midnight-400">{section.wordCount} từ</span>
+                          </div>
+                          <p className="text-sm text-midnight-400">{section.description}</p>
                         </div>
-                        <p className="text-sm text-midnight-400">{section.description}</p>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <p className="text-sm text-midnight-400 mt-3">
+                      Tổng: {selectedBrief.content_structure.totalWordCount} từ
+                    </p>
                   </div>
-                  <p className="text-sm text-midnight-400 mt-3">
-                    Tổng: {selectedBrief.content_structure.totalWordCount} từ
-                  </p>
-                </div>
+                )}
 
-                <div>
-                  <h3 className="font-semibold text-midnight-200 mb-2">🔍 SEO Keywords</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedBrief.seo_keywords.map((keyword, idx) => (
-                      <span
-                        key={idx}
-                        className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-full text-sm"
-                      >
-                        {keyword}
-                      </span>
-                    ))}
+                {selectedBrief.seo_keywords && selectedBrief.seo_keywords.length > 0 && (
+                  <div>
+                    <h3 className="font-semibold text-midnight-200 mb-2">🔍 SEO Keywords</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedBrief.seo_keywords.map((keyword, idx) => (
+                        <span
+                          key={idx}
+                          className="px-3 py-1 bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-full text-sm"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

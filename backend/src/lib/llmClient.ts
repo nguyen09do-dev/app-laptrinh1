@@ -108,20 +108,53 @@ class LLMClient {
     const maxTokens = options.maxTokens || 2000;
 
     console.log(`🤖 Streaming with OpenAI (${model})...`);
+    console.log(`📝 Prompt length: ${prompt.length} chars`);
 
-    const stream = await this.openaiClient.chat.completions.create({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature,
-      max_tokens: maxTokens,
-      stream: true,
-    });
+    try {
+      const stream = await this.openaiClient.chat.completions.create({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        temperature,
+        max_tokens: maxTokens,
+        stream: true,
+      });
 
-    for await (const chunk of stream) {
-      const content = chunk.choices[0]?.delta?.content;
-      if (content) {
-        yield content;
+      let chunkCount = 0;
+      let hasContent = false;
+
+      for await (const chunk of stream) {
+        chunkCount++;
+        const content = chunk.choices[0]?.delta?.content;
+        
+        if (content) {
+          hasContent = true;
+          yield content;
+        } else {
+          // Log finish reason if available
+          const finishReason = chunk.choices[0]?.finish_reason;
+          if (finishReason) {
+            console.log(`📊 Stream finished. Reason: ${finishReason}, Chunks: ${chunkCount}`);
+          }
+        }
       }
+
+      if (!hasContent) {
+        console.warn(`⚠️ OpenAI stream completed but no content received. Chunks: ${chunkCount}`);
+        throw new Error('OpenAI stream returned no content. Check API key and model availability.');
+      }
+
+      console.log(`✅ OpenAI stream completed. Chunks: ${chunkCount}`);
+    } catch (error) {
+      console.error('❌ OpenAI streaming error:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          throw new Error('OpenAI API key is invalid or missing. Check OPENAI_API_KEY environment variable.');
+        }
+        if (error.message.includes('model')) {
+          throw new Error(`OpenAI model ${model} is not available. Check model name.`);
+        }
+      }
+      throw error;
     }
   }
 

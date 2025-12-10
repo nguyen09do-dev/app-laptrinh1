@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DraftEditor } from '../components/DraftEditor';
+import { EditDraftModal } from '../components/EditDraftModal';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
 import {
@@ -59,7 +60,7 @@ interface ContentPack {
 }
 
 type PackStatus = ContentPack['status'];
-type TabType = 'draft' | 'publish' | 'history';
+type TabType = 'draft' | 'history';
 
 // Status config
 const STATUS_CONFIG: Record<PackStatus, { label: string; color: string; iconName: string }> = {
@@ -136,6 +137,9 @@ export default function ContentStudioPage() {
     style: 'professional',
     useRAG: false,
   });
+  
+  // Edit draft modal state
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -307,7 +311,12 @@ export default function ContentStudioPage() {
       const data = await response.json();
 
       if (data.success) {
-        showToast.success('🎉 Đã publish thành Content!');
+        const versionNumber = data.data?.version_number || 1;
+        if (versionNumber > 1) {
+          showToast.success(`🎉 Đã tạo version ${versionNumber} của Content!`);
+        } else {
+          showToast.success('🎉 Đã publish thành Content!');
+        }
         await fetchData();
       } else {
         showToast.error(data.error || 'Không thể publish');
@@ -522,17 +531,6 @@ export default function ContentStudioPage() {
             Draft
           </button>
           <button
-            onClick={() => setActiveTab('publish')}
-            className={`px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 ${
-              activeTab === 'publish'
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            <Send className="w-4 h-4" />
-            Publish
-          </button>
-          <button
             onClick={() => setActiveTab('history')}
             className={`px-6 py-3 rounded-lg font-medium transition-all flex items-center gap-2 ${
               activeTab === 'history'
@@ -619,9 +617,22 @@ export default function ContentStudioPage() {
                       content={selectedPack.draft_content || ''}
                       isStreaming={false}
                       wordCount={selectedPack.word_count || 0}
-                      packId={selectedPack.pack_id}
-                      onSave={(newContent) => handleSaveDraft(selectedPack.pack_id, newContent)}
                     />
+                    
+                    {/* AI-Powered Edit Button */}
+                    {selectedPack.draft_content && (
+                      <motion.button
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setShowEditModal(true)}
+                        className="mt-4 w-full px-6 py-3 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 text-white rounded-xl font-medium transition-all shadow-lg hover:shadow-purple-500/50 flex items-center justify-center gap-2"
+                      >
+                        <Sparkles className="w-5 h-5" />
+                        AI-Powered Edit
+                      </motion.button>
+                    )}
 
                     <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/10">
                       <button
@@ -633,6 +644,22 @@ export default function ContentStudioPage() {
                       </button>
 
                       <div className="flex items-center gap-2">
+                        {/* Publish to Library button when status = "published" */}
+                        {selectedPack.status === 'published' && (
+                          <motion.button
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handlePublishToContent(selectedPack.pack_id)}
+                            className="px-6 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg font-medium transition-all shadow-lg hover:shadow-emerald-500/50 flex items-center gap-2"
+                          >
+                            <Send className="w-4 h-4" />
+                            Publish to Library
+                          </motion.button>
+                        )}
+                        
+                        {/* Status transition buttons */}
                         {ALLOWED_TRANSITIONS[selectedPack.status]?.map((nextStatus) => {
                           const nextConfig = getStatusConfig(nextStatus);
                           return (
@@ -657,86 +684,6 @@ export default function ContentStudioPage() {
                   </div>
                 )}
               </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'publish' && (
-            <motion.div
-              key="publish"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-            >
-              {selectedPack ? (
-                <div>
-                  {/* Action Bar */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={generateDerivatives}
-                        disabled={!selectedPack || isGenerating}
-                        className={`
-                          flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all
-                          ${selectedPack && !isGenerating
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-500 hover:to-pink-500'
-                            : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                          }
-                        `}
-                      >
-                        {isGenerating ? (
-                          <RefreshCw className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <Sparkles className="w-5 h-5" />
-                        )}
-                        <span>{isGenerating ? 'Generating...' : 'Generate Derivatives'}</span>
-                      </button>
-
-                      {selectedPack?.derivatives && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => exportDerivatives('json')}
-                            className="flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
-                          >
-                            <FileJson className="w-4 h-4" />
-                            JSON
-                          </button>
-                          <button
-                            onClick={() => exportDerivatives('md')}
-                            className="flex items-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-colors"
-                          >
-                            <FileText className="w-4 h-4" />
-                            Markdown
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Derivatives Content */}
-                  <div className="glass-card rounded-2xl p-6">
-                    {isGenerating ? (
-                      <DerivativesLoading />
-                    ) : !selectedPack.derivatives || !selectedPack.derivatives.twitter_thread || selectedPack.derivatives.twitter_thread.length === 0 ? (
-                      <DerivativesEmptyState
-                        onGenerate={generateDerivatives}
-                        isGenerating={isGenerating}
-                      />
-                    ) : (
-                      <DerivativeTabs
-                        derivatives={selectedPack.derivatives}
-                        onRegenerate={handleRegenerate}
-                        isLoading={isGenerating}
-                      />
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-white/5 rounded-xl p-12 text-center text-gray-400">
-                  <Send className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg">No pack selected</p>
-                  <p className="text-sm mt-1">Select a pack to generate multi-platform content</p>
-                </div>
-              )}
             </motion.div>
           )}
 
@@ -900,6 +847,19 @@ export default function ContentStudioPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Edit Draft Modal */}
+        {showEditModal && selectedPack && (
+          <EditDraftModal
+            content={selectedPack.draft_content || ''}
+            packId={selectedPack.pack_id}
+            onClose={() => setShowEditModal(false)}
+            onSave={async (newContent) => {
+              await handleSaveDraft(selectedPack.pack_id, newContent);
+              setShowEditModal(false);
+            }}
+          />
+        )}
       </div>
     </div>
   );

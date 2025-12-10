@@ -357,6 +357,26 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
   }
 
   /**
+   * Update draft content of a pack
+   */
+  async updateDraftContent(packId: string, draftContent: string): Promise<ContentPack | null> {
+    // Calculate word count
+    const wordCount = draftContent.trim().split(/\s+/).filter(w => w.length > 0).length;
+
+    const result = await db.query(
+      `UPDATE content_packs 
+       SET draft_content = $1, 
+           word_count = $2,
+           updated_at = NOW()
+       WHERE pack_id = $3
+       RETURNING *`,
+      [draftContent, wordCount, packId]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  /**
    * Update pack status (simple - without validation)
    */
   async updatePackStatus(packId: string, status: PackStatus): Promise<ContentPack | null> {

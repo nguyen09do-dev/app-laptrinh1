@@ -41,11 +41,20 @@ export class BriefsService {
    * Parse brief data from database
    */
   private parseBrief(row: any): Brief {
+    const contentStructure = this.safeJsonParse(row.content_structure, {});
+    // Ensure content_structure has proper shape
+    const normalizedStructure = contentStructure && Object.keys(contentStructure).length > 0
+      ? {
+          sections: contentStructure.sections || [],
+          totalWordCount: contentStructure.totalWordCount || 0
+        }
+      : null;
+
     return {
       ...row,
       key_messages: this.safeJsonParse(row.key_messages, []),
       seo_keywords: this.safeJsonParse(row.seo_keywords, []),
-      content_structure: this.safeJsonParse(row.content_structure, {})
+      content_structure: normalizedStructure
     };
   }
 

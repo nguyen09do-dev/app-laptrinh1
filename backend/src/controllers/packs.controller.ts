@@ -382,6 +382,50 @@ export class PacksController {
       });
     }
   }
+
+  /**
+   * PUT /api/packs/:packId - Update draft content
+   */
+  async updateDraftContent(
+    request: FastifyRequest<{
+      Params: { packId: string };
+      Body: { draft_content: string };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { packId } = request.params;
+      const { draft_content } = request.body;
+
+      if (!draft_content) {
+        return reply.status(400).send({
+          success: false,
+          error: 'draft_content is required',
+        });
+      }
+
+      const pack = await packsService.updateDraftContent(packId, draft_content);
+
+      if (!pack) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Content pack not found',
+        });
+      }
+
+      return reply.send({
+        success: true,
+        data: pack,
+        message: 'Draft content updated successfully',
+      });
+    } catch (error) {
+      console.error('Error updating draft content:', error);
+      return reply.status(500).send({
+        success: false,
+        error: 'Failed to update draft content',
+      });
+    }
+  }
 }
 
 // Export singleton instance

@@ -34,4 +34,37 @@ export async function contentsRoutes(fastify: FastifyInstance) {
   fastify.delete('/contents/:id', {
     handler: contentsController.deleteContent.bind(contentsController),
   });
+
+  /**
+   * GET /api/contents/:id/versions
+   * Get all versions of a content
+   */
+  fastify.get('/contents/:id/versions', {
+    handler: contentsController.getContentVersions.bind(contentsController),
+  });
+
+  /**
+   * POST /api/contents/:id/set-version
+   * Set a specific version as the active/current version
+   * Body: { version_number: number }
+   */
+  fastify.post('/contents/:id/set-version', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+        },
+        required: ['id'],
+      },
+      body: {
+        type: 'object',
+        properties: {
+          version_number: { type: 'number' },
+        },
+        required: ['version_number'],
+      },
+    },
+    handler: contentsController.setActiveVersion.bind(contentsController),
+  });
 }

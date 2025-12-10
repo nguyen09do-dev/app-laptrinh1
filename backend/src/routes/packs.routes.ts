@@ -126,6 +126,30 @@ export async function packsRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * PUT /api/packs/:packId
+   * Update draft content
+   */
+  fastify.put('/packs/:packId', {
+    schema: {
+      params: {
+        type: 'object',
+        properties: {
+          packId: { type: 'string', format: 'uuid' },
+        },
+        required: ['packId'],
+      },
+      body: {
+        type: 'object',
+        properties: {
+          draft_content: { type: 'string' },
+        },
+        required: ['draft_content'],
+      },
+    },
+    handler: packsController.updateDraftContent.bind(packsController),
+  });
+
+  /**
    * DELETE /api/packs/:packId
    * Delete content pack
    */

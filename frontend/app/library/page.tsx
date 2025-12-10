@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, FileText, Database, Upload, Search, Filter, X } from 'lucide-react';
+import { BookOpen, FileText, Database, Upload, Search, Filter, X, Sparkles } from 'lucide-react';
 import { useDocuments, useDocumentStats } from '../hooks/useDocuments';
 import DocumentUploadDialog from '../components/DocumentUploadDialog';
 import DocumentsTableView from '../components/DocumentsTableView';
-import { ContentRenderer } from '@/components/ui/content-renderer';
+import { ContentDetailModal } from '../components/ContentDetailModal';
 import { EmptyState } from '@/components/ui/empty-state';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
@@ -348,33 +348,69 @@ export default function LibraryPage() {
                       Hiển thị <span className="font-semibold text-white">{filteredContents.length}</span> trong tổng số <span className="font-semibold text-white">{contents.length}</span> contents
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredContents.map((content) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredContents.map((content, index) => (
                       <motion.div
                         key={content.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ scale: 1.02, y: -5 }}
                         onClick={() => setSelectedContent(content)}
-                        className="glass-card rounded-xl p-6 hover:border-mint-400/50 transition-all cursor-pointer"
+                        className="relative group glass-card rounded-2xl p-6 cursor-pointer overflow-hidden border-2 border-transparent hover:border-mint-400/50 transition-all"
                       >
-                        <div className="flex items-start justify-between mb-3">
-                          <h3 className="text-lg font-semibold text-white flex-1 line-clamp-2">{content.title}</h3>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                              content.status
-                            )}`}
-                          >
-                            {content.status}
-                          </span>
+                        {/* Gradient overlay on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-mint-500/0 to-mint-500/0 group-hover:from-mint-500/5 group-hover:to-transparent transition-all duration-300" />
+                        
+                        {/* Content */}
+                        <div className="relative z-10">
+                          <div className="flex items-start justify-between mb-3">
+                            <h3 className="text-lg font-semibold text-white flex-1 line-clamp-2 group-hover:text-mint-300 transition-colors">
+                              {content.title}
+                            </h3>
+                            <motion.span
+                              whileHover={{ scale: 1.1 }}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(
+                                content.status
+                              )}`}
+                            >
+                              {content.status}
+                            </motion.span>
+                          </div>
+                          
+                          <p className="text-gray-300 text-sm mb-4 line-clamp-3">{content.body}</p>
+                          
+                          <div className="flex items-center justify-between text-xs text-gray-400 border-t border-white/10 pt-3">
+                            <div className="flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                {content.word_count} từ
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <span>⏱️</span>
+                                {content.reading_time || Math.ceil(content.word_count / 200)} min
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="text-xs text-gray-500 mt-2 flex items-center justify-between">
+                            <span>🕒 {new Date(content.created_at).toLocaleDateString('vi-VN')}</span>
+                            <motion.div
+                              initial={{ opacity: 0, x: -10 }}
+                              whileHover={{ opacity: 1, x: 0 }}
+                              className="flex items-center gap-1 text-mint-400 font-medium"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>View details</span>
+                            </motion.div>
+                          </div>
                         </div>
-                        <p className="text-gray-300 text-sm mb-3 line-clamp-3">{content.body}</p>
-                        <div className="flex items-center justify-between text-xs text-gray-400">
-                          <span>📊 {content.word_count} từ</span>
-                          <span>⏱️ {content.reading_time || Math.ceil(content.word_count / 200)} phút đọc</span>
-                        </div>
-                        <div className="text-xs text-gray-500 mt-2">
-                          🕒 {new Date(content.created_at).toLocaleDateString('vi-VN')}
-                        </div>
+
+                        {/* Shimmer effect on hover */}
+                        <motion.div
+                          className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent"
+                          style={{ transform: 'skewX(-20deg)' }}
+                        />
                       </motion.div>
                     ))}
                   </div>
@@ -383,66 +419,11 @@ export default function LibraryPage() {
 
               {/* Content Detail Modal */}
               {selectedContent && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-                  onClick={() => setSelectedContent(null)}
-                >
-                  <motion.div
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-mint-500/30"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-start justify-between mb-6">
-                      <div className="flex-1">
-                        <h2 className="text-3xl font-bold text-white mb-2">{selectedContent.title}</h2>
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
-                              selectedContent.status
-                            )}`}
-                          >
-                            {selectedContent.status}
-                          </span>
-                          <span className="text-gray-400 text-sm">
-                            📊 {selectedContent.word_count} từ
-                          </span>
-                          <span className="text-gray-400 text-sm">
-                            ⏱️ {selectedContent.reading_time || Math.ceil(selectedContent.word_count / 200)} phút đọc
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setSelectedContent(null)}
-                        className="text-gray-400 hover:text-white text-2xl"
-                      >
-                        ×
-                      </button>
-                    </div>
-
-                    <div className="mb-6">
-                      <h3 className="text-xl font-semibold text-mint-400 mb-3">📄 Nội dung</h3>
-                      <ContentRenderer content={selectedContent.body} />
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleDeleteContent(selectedContent.id)}
-                        className="px-6 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-all"
-                      >
-                        🗑️ Xóa Content
-                      </button>
-                      <button
-                        onClick={() => setSelectedContent(null)}
-                        className="flex-1 px-6 py-2 bg-mint-500/20 text-mint-400 border border-mint-500/30 rounded-lg hover:bg-mint-500/30 transition-all"
-                      >
-                        Đóng
-                      </button>
-                    </div>
-                  </motion.div>
-                </motion.div>
+                <ContentDetailModal
+                  content={selectedContent}
+                  onClose={() => setSelectedContent(null)}
+                  onDelete={handleDeleteContent}
+                />
               )}
             </motion.div>
           )}

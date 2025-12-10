@@ -9,6 +9,7 @@ import { analyticsRoutes } from './routes/analytics.routes.js';
 import { settingsRoutes } from './routes/settings.routes.js';
 import { packsRoutes } from './routes/packs.routes.js';
 import { ragRoutes } from './routes/rag.routes.js';
+import { generateRoutes } from './routes/generate.routes.js';
 import { db } from './lib/db.js';
 
 // Tạo Fastify instance
@@ -40,6 +41,7 @@ fastify.register(analyticsRoutes, { prefix: '/api' });
 fastify.register(settingsRoutes, { prefix: '/api' });
 fastify.register(packsRoutes, { prefix: '/api' });
 fastify.register(ragRoutes); // RAG routes already have /api prefix
+fastify.register(generateRoutes, { prefix: '/api' }); // Generic streaming generation
 
 // Health check endpoint
 fastify.get('/health', async () => {

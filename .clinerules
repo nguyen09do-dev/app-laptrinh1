@@ -1,0 +1,325 @@
+# Roo Cline Rules - AI Content Marketing Platform
+
+## Project Overview
+
+This is an AI-powered content marketing platform built with:
+- **Backend**: Fastify + TypeScript + PostgreSQL (with pgvector)
+- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS + Framer Motion
+- **AI**: OpenAI GPT-4 & Google Gemini for content generation
+- **Features**: Content generation, RAG system, Multi-platform derivatives, Content packs
+
+## Tech Stack
+
+### Backend (Port 3001)
+- **Framework**: Fastify 4.x
+- **Language**: TypeScript 5.x
+- **Database**: PostgreSQL 15 with pgvector extension
+- **ORM**: Raw SQL with pg driver
+- **AI Libraries**:
+  - `openai` (OpenAI GPT-4)
+  - `@google/generative-ai` (Gemini)
+- **Document Processing**: mammoth (Word), pdf-parse (PDF), cheerio (HTML)
+- **Dev Tool**: tsx watch
+
+### Frontend (Port 3000)
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript 5.x
+- **Styling**: Tailwind CSS 3.x
+- **UI Components**: Custom components + lucide-react icons
+- **Animations**: Framer Motion
+- **Data Fetching**: SWR
+- **State**: React Context API
+- **Markdown**: react-markdown + remark-gfm
+
+### Database
+- **PostgreSQL 15** running via Docker Compose (port 5432)
+- **Extensions**: pgvector for embeddings
+- **Tables**:
+  - `content_ideas` - Original ideas
+  - `contents` - Generated content
+  - `content_packs` - Content bundles with drafts
+  - `rag_documents` - RAG knowledge base
+  - `derivative_versions` - Content derivative history
+
+## Project Structure
+
+```
+G:\Code01-HWAIcontentmulti/
+├── backend/
+│   ├── src/
+│   │   ├── index.ts                    # Fastify server entry
+│   │   ├── routes/                     # API routes
+│   │   │   ├── ideas.routes.ts         # Ideas CRUD
+│   │   │   ├── contents.routes.ts      # Content generation
+│   │   │   ├── packs.routes.ts         # Content packs + derivatives
+│   │   │   ├── briefs.routes.ts        # Brief management
+│   │   │   └── rag.routes.ts           # RAG endpoints
+│   │   ├── controllers/                # Request handlers
+│   │   │   ├── ideas.controller.ts
+│   │   │   ├── contents.controller.ts
+│   │   │   ├── packs.controller.ts
+│   │   │   ├── briefs.controller.ts
+│   │   │   └── derivatives.controller.ts
+│   │   ├── services/                   # Business logic
+│   │   │   ├── ideas.service.ts
+│   │   │   ├── contents.service.ts
+│   │   │   ├── packs.service.ts
+│   │   │   ├── briefs.service.ts
+│   │   │   ├── embedding.service.ts    # Vector embeddings
+│   │   │   ├── rag.service.ts          # RAG retrieval
+│   │   │   └── derivativeGenerator.ts  # Multi-platform content
+│   │   ├── lib/
+│   │   │   ├── db.ts                   # PostgreSQL connection
+│   │   │   └── llmClient.ts            # Unified LLM client
+│   │   └── schema/                     # Validation schemas
+│   ├── migrations/                     # Database migrations
+│   ├── init.sql                        # Initial DB setup
+│   └── .env                            # Environment variables
+├── frontend/
+│   ├── app/
+│   │   ├── layout.tsx                  # Root layout
+│   │   ├── page.tsx                    # Home page
+│   │   ├── dashboard/                  # Dashboard page
+│   │   ├── ideas/                      # Ideas management
+│   │   ├── content/                    # Content generation
+│   │   ├── studio/                     # Content Studio (packs)
+│   │   ├── library/                    # Content Library
+│   │   ├── derivatives/                # Multi-platform publish
+│   │   ├── briefs/                     # Briefs page
+│   │   ├── settings/                   # Settings page
+│   │   ├── test-rag/                   # RAG testing page
+│   │   └── components/                 # Shared components
+│   │       ├── TopNav.tsx              # Navigation
+│   │       ├── DynamicBackground.tsx   # Theme system
+│   │       ├── RAGIndicator.tsx        # RAG status
+│   │       ├── DocumentUploadDialog.tsx
+│   │       └── derivatives/            # Derivative components
+│   └── contexts/
+│       └── BackgroundContext.tsx       # Theme context
+├── docker-compose.yml                  # PostgreSQL with pgvector
+└── .clinerules                         # This file
+
+```
+
+## Coding Standards
+
+### TypeScript
+- Use strict mode
+- Prefer interfaces over types for objects
+- Use async/await over promises
+- Always handle errors with try-catch
+- Export singleton instances for services/controllers
+- Use `.js` extensions in imports (ES modules)
+
+### Backend Patterns
+- **Layered Architecture**: Routes → Controllers → Services → Database
+- **Error Handling**: Always return proper HTTP status codes (200, 404, 500, etc.)
+- **Validation**: Use Fastify schemas for request validation
+- **Database**: Use parameterized queries ($1, $2) to prevent SQL injection
+- **LLM**: Retry logic with fallback models (Gemini → OpenAI)
+- **Logging**: Use console.log with emoji prefixes (🚀, ✅, ❌, 🔄)
+
+### Frontend Patterns
+- **Components**: Functional components with TypeScript
+- **Styling**: Tailwind utility classes, avoid inline styles
+- **Data Fetching**: Use SWR for API calls with automatic revalidation
+- **State**: Context API for global state (theme, etc.)
+- **Forms**: Controlled components with proper error handling
+- **Loading**: Always show loading states during async operations
+- **Error Handling**: Display user-friendly error messages with toast
+
+### Naming Conventions
+- **Files**: camelCase for utilities, PascalCase for components
+- **Functions**: camelCase (e.g., `generateContent`)
+- **Classes**: PascalCase (e.g., `ContentService`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `MAX_RETRIES`)
+- **Database**: snake_case for tables/columns (e.g., `content_packs`)
+- **API Endpoints**: kebab-case (e.g., `/api/content-packs`)
+
+## Key Features
+
+### 1. Content Generation
+- Generate 3-section content (Hook, Body, CTA) from ideas
+- Support for persona, industry, tone customization
+- RAG-enhanced generation with relevant documents
+- Streaming responses (not yet implemented but planned)
+
+### 2. Content Packs (Studio)
+- Draft editor with real-time preview
+- Status workflow: draft → reviewed → approved → published
+- SSE streaming for draft generation
+- Integration with RAG for context
+
+### 3. Multi-platform Derivatives (Publish)
+- Generate from pack draft content:
+  - Twitter thread (10 tweets)
+  - LinkedIn post
+  - Email newsletter
+  - Blog summary
+  - SEO description
+- Version history tracking
+- Export to JSON/Markdown
+
+### 4. RAG System
+- Document upload (PDF, Word, TXT, HTML)
+- Text chunking with overlap
+- Vector embeddings with OpenAI text-embedding-3-small
+- Similarity search with pgvector
+- Document management (list, delete)
+
+### 5. Dynamic Themes
+- 3 background themes: Aurora Borealis, Deep Ocean, Sunset Gradient
+- Saved to localStorage
+- Applied globally via Context
+
+## Environment Variables
+
+### Backend (.env)
+```env
+# Database
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+POSTGRES_DB=ai_ideas_db
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
+# AI APIs
+OPENAI_API_KEY=sk-...
+GOOGLE_API_KEY=AIza...
+
+# Server
+PORT=3001
+```
+
+### Frontend
+- No .env needed (uses http://localhost:3001 for API)
+
+## Common Tasks
+
+### Adding a New API Endpoint
+1. Create route in `backend/src/routes/*.routes.ts`
+2. Add controller method in `backend/src/controllers/*.controller.ts`
+3. Implement business logic in `backend/src/services/*.service.ts`
+4. Add database queries if needed
+5. Update frontend to call the new endpoint
+
+### Adding a New Page
+1. Create folder in `frontend/app/[page-name]/`
+2. Add `page.tsx` with the component
+3. Update `TopNav.tsx` if navigation link needed
+4. Use SWR for data fetching
+5. Apply DynamicBackground for theming
+
+### Database Migration
+1. Create migration file in `backend/migrations/`
+2. Write SQL with proper indexes
+3. Run migration script or apply manually
+4. Update TypeScript interfaces if needed
+
+### Adding a New LLM Provider
+1. Update `AIProvider` enum in `backend/src/lib/llmClient.ts`
+2. Add provider logic in `generateCompletion` method
+3. Update model lists
+4. Test retry/fallback logic
+
+## Best Practices
+
+### Performance
+- Use database indexes for frequently queried columns
+- Limit API response sizes (pagination)
+- Use SWR caching on frontend
+- Debounce user inputs
+- Lazy load heavy components
+
+### Security
+- Always use parameterized SQL queries
+- Validate all user inputs
+- Don't commit API keys (use .env)
+- Sanitize user-generated content
+- Use CORS properly
+
+### Code Quality
+- Write descriptive commit messages
+- Add comments for complex logic
+- Keep functions small and focused
+- Avoid code duplication (DRY principle)
+- Use TypeScript types everywhere
+
+### Testing
+- Test API endpoints manually first
+- Verify database queries return expected data
+- Check error handling paths
+- Test with different AI models
+- Verify frontend renders correctly
+
+## Common Issues
+
+### Database Connection
+- Ensure Docker container is running: `docker compose up -d`
+- Check connection string in .env
+- Verify migrations have run
+
+### LLM API Failures
+- Check API keys are valid
+- Monitor rate limits
+- Use retry logic with exponential backoff
+- Implement fallback models
+
+### Frontend Issues
+- Clear Next.js cache: `rm -rf .next`
+- Restart dev server
+- Check API endpoint URLs
+- Verify CORS settings
+
+## Dependencies to Watch
+
+### Critical
+- `fastify` - Backend framework
+- `next` - Frontend framework
+- `pg` - PostgreSQL driver
+- `pgvector` - Vector similarity
+- `openai` - OpenAI SDK
+- `@google/generative-ai` - Gemini SDK
+
+### Keep Updated
+- TypeScript (both backend/frontend)
+- Tailwind CSS
+- React & React DOM
+
+## AI Assistant Guidelines
+
+When helping with this project:
+
+1. **Always read existing code** before suggesting changes
+2. **Follow the layered architecture** (routes → controllers → services)
+3. **Use existing patterns** (singleton exports, error handling)
+4. **Test database queries** before suggesting them
+5. **Consider LLM fallbacks** when adding AI features
+6. **Maintain TypeScript types** for all functions
+7. **Update both backend and frontend** when adding features
+8. **Document complex logic** with comments
+9. **Use consistent emoji prefixes** in logs
+10. **Verify changes don't break existing features**
+
+## Project Goals
+
+- ✅ Generate high-quality marketing content with AI
+- ✅ Support multiple content formats and platforms
+- ✅ Provide context-aware generation with RAG
+- ✅ Enable collaborative content workflow
+- ✅ Deliver professional, polished UI/UX
+- 🔄 Add content calendar/scheduling (future)
+- 🔄 Implement team collaboration features (future)
+- 🔄 Add analytics and insights (future)
+
+## Contact & Support
+
+- Project path: `G:\Code01-HWAIcontentmulti`
+- Backend: http://localhost:3001
+- Frontend: http://localhost:3000
+- Database: PostgreSQL on port 5432
+
+---
+
+**Last Updated**: 2025-12-10
+**Version**: 1.0.0
