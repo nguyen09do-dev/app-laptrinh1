@@ -336,16 +336,31 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
 
   /**
    * Get all content packs
+   * Optimized: Only select necessary columns, parse JSON properly
    */
   async getAllPacks(): Promise<ContentPack[]> {
     const result = await db.query(`
-      SELECT cp.*,
-             b.title as brief_title
+      SELECT 
+        cp.pack_id,
+        cp.brief_id,
+        cp.draft_content,
+        cp.word_count,
+        cp.status,
+        cp.derivatives,
+        cp.created_at,
+        cp.updated_at,
+        b.title as brief_title
       FROM content_packs cp
-      JOIN briefs b ON cp.brief_id = b.id
+      LEFT JOIN briefs b ON cp.brief_id = b.id
       ORDER BY cp.created_at DESC
+      LIMIT 100
     `);
-    return result.rows;
+    
+    // Parse JSON derivatives properly
+    return result.rows.map((row: any) => ({
+      ...row,
+      derivatives: this.safeJsonParse(row.derivatives),
+    }));
   }
 
   /**

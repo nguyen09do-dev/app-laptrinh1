@@ -70,6 +70,7 @@ export class BriefsService {
       FROM briefs b
       JOIN ideas i ON b.idea_id = i.id
       ORDER BY b.created_at DESC
+      LIMIT 500
     `);
     return result.rows.map(row => this.parseBrief(row));
   }

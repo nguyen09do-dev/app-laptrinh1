@@ -1,3 +1,4 @@
+/* Optimize font loading - use font-display: swap to prevent render blocking */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&display=swap');
 

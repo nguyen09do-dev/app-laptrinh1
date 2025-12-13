@@ -28,7 +28,7 @@ export class IdeasService {
    */
   async getAllIdeas(): Promise<Idea[]> {
     const result = await db.query(
-      'SELECT * FROM ideas ORDER BY created_at DESC'
+      'SELECT * FROM ideas ORDER BY created_at DESC LIMIT 1000'
     );
 
     // Parse implementation strings to objects

@@ -56,7 +56,9 @@
       "Bash(node test-implementation.js:*)",
       "Bash(if exist test-implementation.js del test-implementation.js)",
       "Bash(node check-content.js:*)",
-      "Bash(if exist \"G:\\Code01-HWAIcontentmulti\\backend\\check-content.js\" del \"G:\\Code01-HWAIcontentmulti\\backend\\check-content.js\")"
+      "Bash(if exist \"G:\\Code01-HWAIcontentmulti\\backend\\check-content.js\" del \"G:\\Code01-HWAIcontentmulti\\backend\\check-content.js\")",
+      "Bash(psql:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

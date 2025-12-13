@@ -46,6 +46,7 @@ export class ContentsService {
       JOIN briefs b ON c.brief_id = b.id
       JOIN ideas i ON b.idea_id = i.id
       ORDER BY c.created_at DESC
+      LIMIT 500
     `);
     return result.rows;
   }

@@ -11,6 +11,11 @@ import {
   ContentDerivatives,
 } from '../components/derivatives';
 import {
+  MailchimpAuthCard,
+  WordpressAuthCard,
+  PublishActionsPanel,
+} from '../components/integrations';
+import {
   Sparkles,
   Package,
   RefreshCw,
@@ -46,11 +51,11 @@ interface DerivativeVersion {
 
 export default function DerivativesPage() {
   const router = useRouter();
-  
-  // Redirect to Content Studio
-  useEffect(() => {
-    router.push('/studio');
-  }, [router]);
+
+  // REMOVED: Redirect to Content Studio - keeping derivatives page active
+  // useEffect(() => {
+  //   router.push('/studio');
+  // }, [router]);
 
   const [packs, setPacks] = useState<ContentPack[]>([]);
   const [selectedPack, setSelectedPack] = useState<ContentPack | null>(null);
@@ -374,8 +379,9 @@ export default function DerivativesPage() {
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Derivatives Tabs - Main Area */}
-          <div className="lg:col-span-2">
+          {/* Left Column - Derivatives Tabs */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Derivatives Preview */}
             <div className="glass-card rounded-2xl p-6">
               {isLoading ? (
                 <DerivativesLoading />
@@ -394,6 +400,18 @@ export default function DerivativesPage() {
                 />
               )}
             </div>
+
+            {/* Publish Actions Panel */}
+            {selectedPack && (
+              <PublishActionsPanel
+                packId={selectedPack.pack_id}
+                hasDerivatives={
+                  selectedPack.derivatives &&
+                  selectedPack.derivatives.twitter_thread &&
+                  selectedPack.derivatives.twitter_thread.length > 0
+                }
+              />
+            )}
           </div>
 
           {/* Sidebar */}
@@ -499,6 +517,25 @@ export default function DerivativesPage() {
                   onClick={() => showToast.info('Coming soon!')}
                 />
               </div>
+            </motion.div>
+
+            {/* Integration Settings */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="w-5 h-5 text-purple-400" />
+                <h3 className="font-semibold text-white">Platform Integrations</h3>
+              </div>
+
+              {/* Mailchimp Auth */}
+              <MailchimpAuthCard />
+
+              {/* WordPress Auth */}
+              <WordpressAuthCard />
             </motion.div>
           </div>
         </div>

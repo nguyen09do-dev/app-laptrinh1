@@ -28,6 +28,30 @@ export const showToast = {
       position: 'top-right',
     });
   },
+  info: (message: string) => {
+    toast(message, {
+      duration: 4000,
+      position: 'top-right',
+      style: {
+        background: '#3b82f6',
+        color: '#fff',
+        fontWeight: '500',
+      },
+      icon: 'ℹ️',
+    });
+  },
+  warning: (message: string) => {
+    toast(message, {
+      duration: 4000,
+      position: 'top-right',
+      style: {
+        background: '#f59e0b',
+        color: '#fff',
+        fontWeight: '500',
+      },
+      icon: '⚠️',
+    });
+  },
   dismiss: (toastId: string) => {
     toast.dismiss(toastId);
   },

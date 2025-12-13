@@ -17,6 +17,7 @@ export default function TopNav() {
     { name: 'Briefs', path: '/briefs' },
     { name: 'Content Studio', path: '/studio' },
     { name: 'Library', path: '/library' },
+    { name: 'Publisher', path: '/publisher' },
     { name: 'Analytics', path: '/analytics' },
     { name: 'Settings', path: '/settings' },
   ];

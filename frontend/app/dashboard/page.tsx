@@ -45,12 +45,13 @@ interface TimelineData {
 
 export default function DashboardPage() {
   // Use SWR hooks for automatic caching and revalidation
-  const { ideas, isLoading: ideasLoading } = useIdeas();
-  const { briefs, isLoading: briefsLoading } = useBriefs();
-  const { contents, isLoading: contentsLoading } = useContents();
-  const { timeline, isLoading: timelineLoading } = useTimeline(7);
+  const { ideas, isLoading: ideasLoading, isError: ideasError } = useIdeas();
+  const { briefs, isLoading: briefsLoading, isError: briefsError } = useBriefs();
+  const { contents, isLoading: contentsLoading, isError: contentsError } = useContents();
+  const { timeline, isLoading: timelineLoading, isError: timelineError } = useTimeline(7);
 
   const loading = ideasLoading || briefsLoading || contentsLoading || timelineLoading;
+  const hasError = ideasError || briefsError || contentsError || timelineError;
 
   // Ensure ideas, briefs, contents are arrays with default values
   const safeIdeas = Array.isArray(ideas) ? ideas : [];
@@ -197,6 +198,45 @@ export default function DashboardPage() {
 
   if (loading) {
     return <LoadingSkeleton />;
+  }
+
+  // Show error state with helpful message
+  if (hasError && !ideas && !briefs && !contents) {
+    return (
+      <main className="min-h-screen p-6 md:p-10">
+        <div className="max-w-4xl mx-auto">
+          <div className="glass-card rounded-2xl p-8 text-center">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-midnight-100 mb-4">
+              Không thể kết nối đến Backend
+            </h1>
+            <p className="text-midnight-300 mb-6">
+              Server backend không phản hồi. Vui lòng kiểm tra:
+            </p>
+            <div className="text-left max-w-md mx-auto space-y-3 mb-6">
+              <div className="flex items-start gap-3">
+                <span className="text-coral-400">1.</span>
+                <span className="text-midnight-200">Backend đã được khởi động chưa? Chạy: <code className="bg-midnight-800 px-2 py-1 rounded">cd backend && npm run dev</code></span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-coral-400">2.</span>
+                <span className="text-midnight-200">Database đã chạy chưa? Kiểm tra PostgreSQL</span>
+              </div>
+              <div className="flex items-start gap-3">
+                <span className="text-coral-400">3.</span>
+                <span className="text-midnight-200">Port 3001 có bị chiếm không? Kiểm tra với <code className="bg-midnight-800 px-2 py-1 rounded">netstat -ano | findstr :3001</code></span>
+              </div>
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-3 bg-gradient-to-r from-midnight-500 to-coral-500 text-white font-semibold rounded-xl hover:from-midnight-400 hover:to-coral-400 transition-all"
+            >
+              🔄 Thử lại
+            </button>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
