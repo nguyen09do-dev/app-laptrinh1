@@ -5,7 +5,7 @@ const { Pool } = pg;
 /**
  * Database connection pool
  * Sử dụng Pool để quản lý nhiều kết nối hiệu quả
- * 
+ *
  * IMPORTANT: Configure pool limits to prevent connection leaks
  */
 export const db = new Pool({
@@ -47,16 +47,3 @@ process.on('SIGTERM', async () => {
   console.log('📦 Database pool closed');
   process.exit(0);
 });
-
-
-
-
-
-
-
-
-
-
-
-
-

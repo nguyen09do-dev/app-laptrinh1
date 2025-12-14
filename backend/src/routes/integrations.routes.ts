@@ -201,4 +201,80 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
     },
     handler: integrationsController.publishToWordpress.bind(integrationsController),
   });
+
+  // ==========================================
+  // FACEBOOK INTEGRATION
+  // ==========================================
+
+  fastify.post('/integrations/facebook/save', {
+    handler: integrationsController.saveFacebookCredentials.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/facebook/test', {
+    handler: integrationsController.testFacebookConfig.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/facebook/publish', {
+    handler: integrationsController.publishToFacebookEndpoint.bind(integrationsController),
+  });
+
+  // ==========================================
+  // INSTAGRAM INTEGRATION
+  // ==========================================
+
+  fastify.post('/integrations/instagram/save', {
+    handler: integrationsController.saveInstagramCredentials.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/instagram/test', {
+    handler: integrationsController.testInstagramConfig.bind(integrationsController),
+  });
+
+  // ==========================================
+  // TWITTER INTEGRATION
+  // ==========================================
+
+  fastify.post('/integrations/twitter/save', {
+    handler: integrationsController.saveTwitterCredentials.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/twitter/test', {
+    handler: integrationsController.testTwitterConfig.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/twitter/publish', {
+    handler: integrationsController.publishToTwitterEndpoint.bind(integrationsController),
+  });
+
+  // ==========================================
+  // LINKEDIN INTEGRATION
+  // ==========================================
+
+  fastify.post('/integrations/linkedin/save', {
+    handler: integrationsController.saveLinkedInCredentials.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/linkedin/test', {
+    handler: integrationsController.testLinkedInConfig.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/linkedin/publish', {
+    handler: integrationsController.publishToLinkedInEndpoint.bind(integrationsController),
+  });
+
+  // ==========================================
+  // ZALO INTEGRATION
+  // ==========================================
+
+  fastify.post('/integrations/zalo/save', {
+    handler: integrationsController.saveZaloCredentials.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/zalo/test', {
+    handler: integrationsController.testZaloConfig.bind(integrationsController),
+  });
+
+  fastify.post('/integrations/zalo/publish', {
+    handler: integrationsController.publishToZaloEndpoint.bind(integrationsController),
+  });
 }

@@ -39,12 +39,13 @@ export class ContentsService {
   async getAllContents(): Promise<Content[]> {
     const result = await db.query(`
       SELECT c.*,
+             c.id as content_id,
              b.title as brief_title,
              i.persona as persona,
              i.industry as industry
       FROM contents c
-      JOIN briefs b ON c.brief_id = b.id
-      JOIN ideas i ON b.idea_id = i.id
+      LEFT JOIN briefs b ON c.brief_id = b.id
+      LEFT JOIN ideas i ON b.idea_id = i.id
       ORDER BY c.created_at DESC
       LIMIT 500
     `);

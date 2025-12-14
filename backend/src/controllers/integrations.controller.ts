@@ -10,6 +10,32 @@ import {
   testWordpressConnection,
   publishToWordpress,
 } from '../services/wordpress.service.js';
+import {
+  validateFacebookConfig,
+  testFacebookConnection,
+  publishToFacebook,
+} from '../services/facebook.service.js';
+import {
+  validateInstagramConfig,
+  testInstagramConnection,
+  publishToInstagram,
+} from '../services/instagram.service.js';
+import {
+  validateTwitterConfig,
+  testTwitterConnection,
+  publishToTwitter,
+  publishTwitterThread,
+} from '../services/twitter.service.js';
+import {
+  validateLinkedInConfig,
+  testLinkedInConnection,
+  publishToLinkedIn,
+} from '../services/linkedin.service.js';
+import {
+  validateZaloConfig,
+  testZaloConnection,
+  publishToZalo,
+} from '../services/zalo.service.js';
 
 /**
  * IntegrationsController - Handle HTTP requests for third-party integrations
@@ -241,7 +267,7 @@ export class IntegrationsController {
         sourceId = pack_id;
       } else if (content_id) {
         const contentResult = await db.query(
-          `SELECT content_id, final_content, draft_content, derivatives FROM contents WHERE content_id = $1`,
+          `SELECT id, body, title, final_content, draft_content, derivatives FROM contents WHERE id = $1`,
           [content_id]
         );
 
@@ -257,7 +283,7 @@ export class IntegrationsController {
 
         const content = contentResult.rows[0];
         derivatives = content.derivatives;
-        sourceContent = content.final_content || content.draft_content;
+        sourceContent = content.body || content.final_content || content.draft_content;
         sourceId = `content-${content_id}`;
       }
 
@@ -561,7 +587,7 @@ export class IntegrationsController {
         sourceContent = pack.draft_content;
       } else if (content_id) {
         const contentResult = await db.query(
-          `SELECT content_id, final_content, draft_content, derivatives FROM contents WHERE content_id = $1`,
+          `SELECT id, body, final_content, draft_content, derivatives FROM contents WHERE id = $1`,
           [content_id]
         );
 
@@ -634,6 +660,686 @@ export class IntegrationsController {
           message: 'Failed to publish',
           details: error.message,
         },
+      });
+    }
+  }
+
+  // ==========================================
+  // FACEBOOK ENDPOINTS
+  // ==========================================
+
+  /**
+   * POST /api/integrations/facebook/save
+   */
+  async saveFacebookCredentials(
+    request: FastifyRequest<{
+      Body: {
+        pageId: string;
+        accessToken: string;
+        apiVersion?: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { pageId, accessToken, apiVersion } = request.body;
+
+      const validation = validateFacebookConfig({ pageId, accessToken, apiVersion });
+      if (!validation.valid) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Validation failed', details: validation.errors.join(', ') },
+        });
+      }
+
+      await db.query(
+        `INSERT INTO integration_credentials (platform, config, updated_at)
+         VALUES ('facebook', $1, NOW())
+         ON CONFLICT (platform) DO UPDATE SET config = $1, updated_at = NOW()`,
+        [JSON.stringify({ pageId, accessToken, apiVersion: apiVersion || 'v18.0' })]
+      );
+
+      return reply.send({ success: true, message: 'Facebook credentials saved' });
+    } catch (error: any) {
+      console.error('❌ Error saving Facebook credentials:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to save credentials', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/facebook/test
+   */
+  async testFacebookConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'facebook'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No Facebook credentials found' },
+        });
+      }
+
+      const config = result.rows[0].config;
+      const testResult = await testFacebookConnection(config);
+
+      return reply.send(testResult);
+    } catch (error: any) {
+      console.error('❌ Error testing Facebook:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Test failed', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/facebook/publish
+   */
+  async publishToFacebookEndpoint(
+    request: FastifyRequest<{ Body: { pack_id?: number; content_id?: number } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { pack_id, content_id } = request.body;
+      let derivatives: any;
+
+      if (pack_id) {
+        const packResult = await db.query(
+          `SELECT derivatives FROM content_packs WHERE pack_id = $1`,
+          [pack_id]
+        );
+        if (packResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Pack not found' },
+          });
+        }
+        derivatives = packResult.rows[0].derivatives;
+      } else if (content_id) {
+        const contentResult = await db.query(
+          `SELECT derivatives FROM contents WHERE id = $1`,
+          [content_id]
+        );
+        if (contentResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Content not found' },
+          });
+        }
+        derivatives = contentResult.rows[0].derivatives;
+      }
+
+      if (!derivatives || !derivatives.linkedin) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No derivatives available' },
+        });
+      }
+
+      const credResult = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'facebook'`
+      );
+      if (credResult.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Missing Facebook credentials' },
+        });
+      }
+
+      const config = credResult.rows[0].config;
+      const publishResult = await publishToFacebook(config, {
+        message: derivatives.linkedin,
+      });
+
+      if (publishResult.success) {
+        return reply.send(publishResult);
+      } else {
+        return reply.status(400).send(publishResult);
+      }
+    } catch (error: any) {
+      console.error('❌ Error publishing to Facebook:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to publish', details: error.message },
+      });
+    }
+  }
+
+  // ==========================================
+  // INSTAGRAM ENDPOINTS
+  // ==========================================
+
+  /**
+   * POST /api/integrations/instagram/save
+   */
+  async saveInstagramCredentials(
+    request: FastifyRequest<{
+      Body: {
+        userId: string;
+        accessToken: string;
+        apiVersion?: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { userId, accessToken, apiVersion } = request.body;
+
+      const validation = validateInstagramConfig({ userId, accessToken, apiVersion });
+      if (!validation.valid) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Validation failed', details: validation.errors.join(', ') },
+        });
+      }
+
+      await db.query(
+        `INSERT INTO integration_credentials (platform, config, updated_at)
+         VALUES ('instagram', $1, NOW())
+         ON CONFLICT (platform) DO UPDATE SET config = $1, updated_at = NOW()`,
+        [JSON.stringify({ userId, accessToken, apiVersion: apiVersion || 'v18.0' })]
+      );
+
+      return reply.send({ success: true, message: 'Instagram credentials saved' });
+    } catch (error: any) {
+      console.error('❌ Error saving Instagram credentials:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to save credentials', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/instagram/test
+   */
+  async testInstagramConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'instagram'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No Instagram credentials found' },
+        });
+      }
+
+      const config = result.rows[0].config;
+      const testResult = await testInstagramConnection(config);
+
+      return reply.send(testResult);
+    } catch (error: any) {
+      console.error('❌ Error testing Instagram:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Test failed', details: error.message },
+      });
+    }
+  }
+
+  // ==========================================
+  // TWITTER ENDPOINTS
+  // ==========================================
+
+  /**
+   * POST /api/integrations/twitter/save
+   */
+  async saveTwitterCredentials(
+    request: FastifyRequest<{
+      Body: {
+        apiKey: string;
+        apiSecret: string;
+        accessToken: string;
+        accessTokenSecret: string;
+        bearerToken?: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { apiKey, apiSecret, accessToken, accessTokenSecret, bearerToken } = request.body;
+
+      const validation = validateTwitterConfig({
+        apiKey,
+        apiSecret,
+        accessToken,
+        accessTokenSecret,
+        bearerToken,
+      });
+      if (!validation.valid) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Validation failed', details: validation.errors.join(', ') },
+        });
+      }
+
+      await db.query(
+        `INSERT INTO integration_credentials (platform, config, updated_at)
+         VALUES ('twitter', $1, NOW())
+         ON CONFLICT (platform) DO UPDATE SET config = $1, updated_at = NOW()`,
+        [
+          JSON.stringify({
+            apiKey,
+            apiSecret,
+            accessToken,
+            accessTokenSecret,
+            bearerToken,
+          }),
+        ]
+      );
+
+      return reply.send({ success: true, message: 'Twitter credentials saved' });
+    } catch (error: any) {
+      console.error('❌ Error saving Twitter credentials:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to save credentials', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/twitter/test
+   */
+  async testTwitterConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'twitter'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No Twitter credentials found' },
+        });
+      }
+
+      const config = result.rows[0].config;
+      const testResult = await testTwitterConnection(config);
+
+      return reply.send(testResult);
+    } catch (error: any) {
+      console.error('❌ Error testing Twitter:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Test failed', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/twitter/publish
+   */
+  async publishToTwitterEndpoint(
+    request: FastifyRequest<{ Body: { pack_id?: number; content_id?: number } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { pack_id, content_id } = request.body;
+      let derivatives: any;
+
+      if (pack_id) {
+        const packResult = await db.query(
+          `SELECT derivatives FROM content_packs WHERE pack_id = $1`,
+          [pack_id]
+        );
+        if (packResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Pack not found' },
+          });
+        }
+        derivatives = packResult.rows[0].derivatives;
+      } else if (content_id) {
+        const contentResult = await db.query(
+          `SELECT derivatives FROM contents WHERE id = $1`,
+          [content_id]
+        );
+        if (contentResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Content not found' },
+          });
+        }
+        derivatives = contentResult.rows[0].derivatives;
+      }
+
+      if (!derivatives || !derivatives.twitter_thread) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No Twitter thread derivatives available' },
+        });
+      }
+
+      const credResult = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'twitter'`
+      );
+      if (credResult.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Missing Twitter credentials' },
+        });
+      }
+
+      const config = credResult.rows[0].config;
+      const tweets = Array.isArray(derivatives.twitter_thread)
+        ? derivatives.twitter_thread
+        : [derivatives.twitter_thread];
+
+      const publishResult = await publishTwitterThread(config, tweets);
+
+      if (publishResult.success) {
+        return reply.send(publishResult);
+      } else {
+        return reply.status(400).send(publishResult);
+      }
+    } catch (error: any) {
+      console.error('❌ Error publishing to Twitter:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to publish', details: error.message },
+      });
+    }
+  }
+
+  // ==========================================
+  // LINKEDIN ENDPOINTS
+  // ==========================================
+
+  /**
+   * POST /api/integrations/linkedin/save
+   */
+  async saveLinkedInCredentials(
+    request: FastifyRequest<{
+      Body: {
+        personUrn: string;
+        accessToken: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { personUrn, accessToken } = request.body;
+
+      const validation = validateLinkedInConfig({ personUrn, accessToken });
+      if (!validation.valid) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Validation failed', details: validation.errors.join(', ') },
+        });
+      }
+
+      await db.query(
+        `INSERT INTO integration_credentials (platform, config, updated_at)
+         VALUES ('linkedin', $1, NOW())
+         ON CONFLICT (platform) DO UPDATE SET config = $1, updated_at = NOW()`,
+        [JSON.stringify({ personUrn, accessToken })]
+      );
+
+      return reply.send({ success: true, message: 'LinkedIn credentials saved' });
+    } catch (error: any) {
+      console.error('❌ Error saving LinkedIn credentials:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to save credentials', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/linkedin/test
+   */
+  async testLinkedInConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'linkedin'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No LinkedIn credentials found' },
+        });
+      }
+
+      const config = result.rows[0].config;
+      const testResult = await testLinkedInConnection(config);
+
+      return reply.send(testResult);
+    } catch (error: any) {
+      console.error('❌ Error testing LinkedIn:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Test failed', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/linkedin/publish
+   */
+  async publishToLinkedInEndpoint(
+    request: FastifyRequest<{ Body: { pack_id?: number; content_id?: number } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { pack_id, content_id } = request.body;
+      let derivatives: any;
+
+      if (pack_id) {
+        const packResult = await db.query(
+          `SELECT derivatives FROM content_packs WHERE pack_id = $1`,
+          [pack_id]
+        );
+        if (packResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Pack not found' },
+          });
+        }
+        derivatives = packResult.rows[0].derivatives;
+      } else if (content_id) {
+        const contentResult = await db.query(
+          `SELECT derivatives FROM contents WHERE id = $1`,
+          [content_id]
+        );
+        if (contentResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Content not found' },
+          });
+        }
+        derivatives = contentResult.rows[0].derivatives;
+      }
+
+      if (!derivatives || !derivatives.linkedin) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No LinkedIn derivatives available' },
+        });
+      }
+
+      const credResult = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'linkedin'`
+      );
+      if (credResult.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Missing LinkedIn credentials' },
+        });
+      }
+
+      const config = credResult.rows[0].config;
+      const publishResult = await publishToLinkedIn(config, {
+        text: derivatives.linkedin,
+      });
+
+      if (publishResult.success) {
+        return reply.send(publishResult);
+      } else {
+        return reply.status(400).send(publishResult);
+      }
+    } catch (error: any) {
+      console.error('❌ Error publishing to LinkedIn:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to publish', details: error.message },
+      });
+    }
+  }
+
+  // ==========================================
+  // ZALO ENDPOINTS
+  // ==========================================
+
+  /**
+   * POST /api/integrations/zalo/save
+   */
+  async saveZaloCredentials(
+    request: FastifyRequest<{
+      Body: {
+        oaId: string;
+        accessToken: string;
+        appId?: string;
+        appSecret?: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { oaId, accessToken, appId, appSecret } = request.body;
+
+      const validation = validateZaloConfig({ oaId, accessToken, appId, appSecret });
+      if (!validation.valid) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Validation failed', details: validation.errors.join(', ') },
+        });
+      }
+
+      await db.query(
+        `INSERT INTO integration_credentials (platform, config, updated_at)
+         VALUES ('zalo', $1, NOW())
+         ON CONFLICT (platform) DO UPDATE SET config = $1, updated_at = NOW()`,
+        [JSON.stringify({ oaId, accessToken, appId, appSecret })]
+      );
+
+      return reply.send({ success: true, message: 'Zalo credentials saved' });
+    } catch (error: any) {
+      console.error('❌ Error saving Zalo credentials:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to save credentials', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/zalo/test
+   */
+  async testZaloConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'zalo'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No Zalo credentials found' },
+        });
+      }
+
+      const config = result.rows[0].config;
+      const testResult = await testZaloConnection(config);
+
+      return reply.send(testResult);
+    } catch (error: any) {
+      console.error('❌ Error testing Zalo:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Test failed', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/zalo/publish
+   */
+  async publishToZaloEndpoint(
+    request: FastifyRequest<{ Body: { pack_id?: number; content_id?: number } }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { pack_id, content_id } = request.body;
+      let derivatives: any;
+
+      if (pack_id) {
+        const packResult = await db.query(
+          `SELECT derivatives FROM content_packs WHERE pack_id = $1`,
+          [pack_id]
+        );
+        if (packResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Pack not found' },
+          });
+        }
+        derivatives = packResult.rows[0].derivatives;
+      } else if (content_id) {
+        const contentResult = await db.query(
+          `SELECT derivatives FROM contents WHERE id = $1`,
+          [content_id]
+        );
+        if (contentResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            error: { message: 'Content not found' },
+          });
+        }
+        derivatives = contentResult.rows[0].derivatives;
+      }
+
+      if (!derivatives || !derivatives.linkedin) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'No derivatives available for Zalo' },
+        });
+      }
+
+      const credResult = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'zalo'`
+      );
+      if (credResult.rows.length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: { message: 'Missing Zalo credentials' },
+        });
+      }
+
+      const config = credResult.rows[0].config;
+      const publishResult = await publishToZalo(config, {
+        message: derivatives.linkedin,
+      });
+
+      if (publishResult.success) {
+        return reply.send(publishResult);
+      } else {
+        return reply.status(400).send(publishResult);
+      }
+    } catch (error: any) {
+      console.error('❌ Error publishing to Zalo:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to publish', details: error.message },
       });
     }
   }

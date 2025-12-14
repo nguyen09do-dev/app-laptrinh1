@@ -52,3 +52,6 @@ COMMENT ON COLUMN content_versions.content_id IS 'Groups all versions of the sam
 COMMENT ON COLUMN content_versions.version_number IS 'Version number (1, 2, 3, ...)';
 COMMENT ON COLUMN content_versions.pack_id IS 'The pack that created this version';
 
+
+
+
