@@ -3,6 +3,8 @@
  * Handles email newsletter campaign creation and sending via Mailchimp API
  */
 
+import { markdownToHtml } from '../utils/markdownToHtml';
+
 interface MailchimpConfig {
   apiKey: string;
   serverPrefix: string;
@@ -475,10 +477,13 @@ export async function publishToMailchimp(
     const campaignId = createResult.campaignId;
     console.log('✅ Campaign created:', campaignId);
 
-    // Step 2: Set content with retry
+    // Step 2: Convert markdown to HTML and set content with retry
+    const htmlContent = markdownToHtml(payload.content);
+    console.log('📝 Converted markdown to HTML for email');
+    
     await retryOperation(
       async () => {
-        const result = await setCampaignContent(config, campaignId, payload.content);
+        const result = await setCampaignContent(config, campaignId, htmlContent);
         if (!result.success) {
           const error: any = new Error(result.error?.detail || result.error?.title || 'Failed to set content');
           error.status = result.error?.status;

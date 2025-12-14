@@ -14,6 +14,7 @@ import {
   WordpressAuthCard,
   WordPressConfigModal,
   PublishActionsPanel,
+  IntegrationAccordion,
 } from '../components/integrations';
 import {
   Sparkles,
@@ -53,11 +54,28 @@ interface ContentPack {
   created_at: string;
 }
 
+interface LibraryContent {
+  content_id: number;
+  brief_id: number;
+  brief_title?: string;
+  title?: string;
+  draft_content: string | null;
+  final_content: string | null;
+  word_count: number;
+  status: string;
+  derivatives: ContentDerivatives | null;
+  created_at: string;
+}
+
+type ContentSource = 'packs' | 'library';
 type WorkflowStep = 'select' | 'generate' | 'preview' | 'configure' | 'publish';
 
 export default function MultiPlatformPublisherPage() {
+  const [contentSource, setContentSource] = useState<ContentSource>('packs');
   const [packs, setPacks] = useState<ContentPack[]>([]);
+  const [libraryContents, setLibraryContents] = useState<LibraryContent[]>([]);
   const [selectedPack, setSelectedPack] = useState<ContentPack | null>(null);
+  const [selectedLibraryContent, setSelectedLibraryContent] = useState<LibraryContent | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<WorkflowStep>('select');
@@ -66,13 +84,17 @@ export default function MultiPlatformPublisherPage() {
   const [publishHistory, setPublishHistory] = useState<any[]>([]);
   const [isWordPressModalOpen, setIsWordPressModalOpen] = useState(false);
 
-  // Fetch packs on mount
+  // Fetch content on mount and when source changes
   useEffect(() => {
     let mounted = true;
     
     const init = async () => {
       if (mounted) {
-        await fetchPacks();
+        if (contentSource === 'packs') {
+          await fetchPacks();
+        } else {
+          await fetchLibraryContents();
+        }
         await checkIntegrationStatus();
       }
     };
@@ -82,16 +104,17 @@ export default function MultiPlatformPublisherPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [contentSource]);
 
   // Update step based on state
   useEffect(() => {
     let mounted = true;
     
     if (mounted) {
-      if (!selectedPack) {
+      const selected = contentSource === 'packs' ? selectedPack : selectedLibraryContent;
+      if (!selected) {
         setCurrentStep('select');
-      } else if (!selectedPack.derivatives) {
+      } else if (!selected.derivatives) {
         setCurrentStep('generate');
       } else {
         setCurrentStep('preview');
@@ -101,7 +124,7 @@ export default function MultiPlatformPublisherPage() {
     return () => {
       mounted = false;
     };
-  }, [selectedPack]);
+  }, [selectedPack, selectedLibraryContent, contentSource]);
 
   const fetchPacks = async () => {
     try {
@@ -136,6 +159,45 @@ export default function MultiPlatformPublisherPage() {
         showToast.error('Request timeout - Please check backend connection');
       } else {
         showToast.error('Failed to load content packs');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchLibraryContents = async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
+      const response = await fetch('http://localhost:3001/api/contents', {
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data.success) {
+        const contentsWithText = data.data.filter((c: LibraryContent) => c.final_content || c.draft_content);
+        setLibraryContents(contentsWithText);
+        
+        if (contentsWithText.length > 0 && !selectedLibraryContent) {
+          setSelectedLibraryContent(contentsWithText[0]);
+        }
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch library contents:', error);
+      if (error.name === 'AbortError') {
+        showToast.error('Request timeout - Please check backend connection');
+      } else {
+        showToast.error('Failed to load library contents');
       }
     } finally {
       setIsLoading(false);
@@ -186,8 +248,9 @@ export default function MultiPlatformPublisherPage() {
   };
 
   const generateDerivatives = async () => {
-    if (!selectedPack) {
-      showToast.error('Please select a content pack first');
+    const selected = contentSource === 'packs' ? selectedPack : selectedLibraryContent;
+    if (!selected) {
+      showToast.error('Please select content first');
       return;
     }
 
@@ -198,10 +261,19 @@ export default function MultiPlatformPublisherPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s for AI generation
       
-      const response = await fetch('http://localhost:3001/api/packs/derivatives', {
+      const endpoint = contentSource === 'packs' 
+        ? 'http://localhost:3001/api/packs/derivatives'
+        : 'http://localhost:3001/api/contents/derivatives';
+      
+      const bodyKey = contentSource === 'packs' ? 'pack_id' : 'content_id';
+      const bodyValue = contentSource === 'packs' 
+        ? (selected as ContentPack).pack_id 
+        : (selected as LibraryContent).content_id;
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack_id: selectedPack.pack_id }),
+        body: JSON.stringify({ [bodyKey]: bodyValue }),
         signal: controller.signal,
       });
       
@@ -217,14 +289,21 @@ export default function MultiPlatformPublisherPage() {
         showToast.dismiss(toastId);
         showToast.success('🎉 Multi-platform content generated successfully!');
         
-        // Update selected pack with new derivatives
-        setSelectedPack({
-          ...selectedPack,
-          derivatives: data.data.derivatives,
-        });
+        // Update selected item with new derivatives
+        if (contentSource === 'packs' && selectedPack) {
+          setSelectedPack({
+            ...selectedPack,
+            derivatives: data.data.derivatives,
+          });
+          await fetchPacks();
+        } else if (selectedLibraryContent) {
+          setSelectedLibraryContent({
+            ...selectedLibraryContent,
+            derivatives: data.data.derivatives,
+          });
+          await fetchLibraryContents();
+        }
         
-        // Refresh packs list
-        await fetchPacks();
         setCurrentStep('preview');
       } else {
         throw new Error(data.error || 'Failed to generate derivatives');
@@ -244,7 +323,18 @@ export default function MultiPlatformPublisherPage() {
 
   const handlePackSelect = (pack: ContentPack) => {
     setSelectedPack(pack);
+    setSelectedLibraryContent(null);
     if (pack.derivatives) {
+      setCurrentStep('preview');
+    } else {
+      setCurrentStep('generate');
+    }
+  };
+
+  const handleLibraryContentSelect = (content: LibraryContent) => {
+    setSelectedLibraryContent(content);
+    setSelectedPack(null);
+    if (content.derivatives) {
       setCurrentStep('preview');
     } else {
       setCurrentStep('generate');
@@ -273,11 +363,13 @@ export default function MultiPlatformPublisherPage() {
   };
 
   const getStepProgress = () => {
-    const steps: WorkflowStep[] = ['select', 'generate', 'preview', 'configure', 'publish'];
-    return steps.indexOf(currentStep) + 1;
+    // Simplified step calculation: Select (1), Generate (2), Preview/Publish (3)
+    if (!selectedPack) return 1; // Step 1: Select Content
+    if (!selectedPack.derivatives) return 2; // Step 2: Generate Derivatives
+    return 3; // Step 3: Preview & Publish
   };
 
-  const getTotalSteps = () => 5;
+  const getTotalSteps = () => 3;
 
   if (isLoading) {
     return (
@@ -315,11 +407,9 @@ export default function MultiPlatformPublisherPage() {
                   Step {getStepProgress()} of {getTotalSteps()}
                 </div>
                 <div className="text-xs text-midnight-400">
-                  {currentStep === 'select' && 'Select Content'}
-                  {currentStep === 'generate' && 'Generate Derivatives'}
-                  {currentStep === 'preview' && 'Preview Content'}
-                  {currentStep === 'configure' && 'Configure Integrations'}
-                  {currentStep === 'publish' && 'Publish'}
+                  {!selectedPack && 'Select Content'}
+                  {selectedPack && !selectedPack.derivatives && 'Generate Derivatives'}
+                  {selectedPack && selectedPack.derivatives && 'Preview & Publish'}
                 </div>
               </div>
               <div className="w-32 h-2 bg-midnight-700 rounded-full overflow-hidden">
@@ -356,60 +446,147 @@ export default function MultiPlatformPublisherPage() {
                     <div>
                       <h2 className="text-xl font-semibold text-white">Select Content</h2>
                       <p className="text-sm text-midnight-400">
-                        Choose a content pack to generate multi-platform versions
+                        Choose content to generate multi-platform versions
                       </p>
                     </div>
                   </div>
 
-                  {packs.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Package className="w-16 h-16 text-midnight-600 mx-auto mb-4" />
-                      <p className="text-midnight-400 mb-2">No content packs available</p>
-                      <p className="text-sm text-midnight-500">
-                        Create content packs in Content Studio first
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {packs.map((pack) => (
-                        <motion.button
-                          key={pack.pack_id}
-                          onClick={() => handlePackSelect(pack)}
-                          className={`p-6 rounded-xl border-2 transition-all text-left ${
-                            selectedPack?.pack_id === pack.pack_id
-                              ? 'border-purple-500 bg-purple-500/10'
-                              : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600'
-                          }`}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <h3 className="font-semibold text-white">{pack.title || pack.brief_title || 'Untitled'}</h3>
-                            {pack.derivatives && (
-                              <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg">
-                                Ready
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-midnight-400">
-                            <span className="flex items-center gap-1">
-                              <FileText className="w-4 h-4" />
-                              {pack.word_count} words
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {new Date(pack.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </motion.button>
-                      ))}
-                    </div>
+                  {/* Content Source Selector */}
+                  <div className="flex gap-3 mb-6 p-1 bg-midnight-800 rounded-xl border border-midnight-700">
+                    <button
+                      onClick={() => {
+                        setContentSource('packs');
+                        setSelectedLibraryContent(null);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+                        contentSource === 'packs'
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'text-midnight-400 hover:text-white'
+                      }`}
+                    >
+                      <Package className="w-4 h-4" />
+                      Content Packs
+                    </button>
+                    <button
+                      onClick={() => {
+                        setContentSource('library');
+                        setSelectedPack(null);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+                        contentSource === 'library'
+                          ? 'bg-purple-600 text-white shadow-lg'
+                          : 'text-midnight-400 hover:text-white'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      Library Content
+                    </button>
+                  </div>
+
+                  {/* Content Packs Grid */}
+                  {contentSource === 'packs' && (
+                    <>
+                      {packs.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Package className="w-16 h-16 text-midnight-600 mx-auto mb-4" />
+                          <p className="text-midnight-400 mb-2">No content packs available</p>
+                          <p className="text-sm text-midnight-500">
+                            Create content packs in Content Studio first
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {packs.map((pack) => (
+                            <motion.button
+                              key={pack.pack_id}
+                              onClick={() => handlePackSelect(pack)}
+                              className={`p-6 rounded-xl border-2 transition-all text-left ${
+                                selectedPack?.pack_id === pack.pack_id
+                                  ? 'border-purple-500 bg-purple-500/10'
+                                  : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600'
+                              }`}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <h3 className="font-semibold text-white">{pack.title || pack.brief_title || 'Untitled'}</h3>
+                                {pack.derivatives && (
+                                  <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg">
+                                    Ready
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-midnight-400">
+                                <span className="flex items-center gap-1">
+                                  <FileText className="w-4 h-4" />
+                                  {pack.word_count} words
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {new Date(pack.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </motion.button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Library Content Grid */}
+                  {contentSource === 'library' && (
+                    <>
+                      {libraryContents.length === 0 ? (
+                        <div className="text-center py-12">
+                          <FileText className="w-16 h-16 text-midnight-600 mx-auto mb-4" />
+                          <p className="text-midnight-400 mb-2">No library content available</p>
+                          <p className="text-sm text-midnight-500">
+                            Create content in Content Studio first
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {libraryContents.map((content) => (
+                            <motion.button
+                              key={content.content_id}
+                              onClick={() => handleLibraryContentSelect(content)}
+                              className={`p-6 rounded-xl border-2 transition-all text-left ${
+                                selectedLibraryContent?.content_id === content.content_id
+                                  ? 'border-purple-500 bg-purple-500/10'
+                                  : 'border-midnight-700 bg-midnight-800/50 hover:border-midnight-600'
+                              }`}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <h3 className="font-semibold text-white">{content.title || content.brief_title || 'Untitled'}</h3>
+                                {content.derivatives && (
+                                  <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-lg">
+                                    Ready
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-midnight-400">
+                                <span className="flex items-center gap-1">
+                                  <FileText className="w-4 h-4" />
+                                  {content.word_count} words
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {new Date(content.created_at).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </motion.button>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </motion.div>
               )}
 
               {/* Step 2: Generate Derivatives */}
-              {currentStep === 'generate' && selectedPack && (
+              {currentStep === 'generate' && (contentSource === 'packs' ? selectedPack : selectedLibraryContent) && (
                 <motion.div
                   key="generate"
                   initial={{ opacity: 0, y: 20 }}
@@ -429,12 +606,18 @@ export default function MultiPlatformPublisherPage() {
                     </div>
                   </div>
 
-                  {selectedPack.draft_content && (
-                    <div className="mb-6 p-4 bg-midnight-800 rounded-xl border border-midnight-700">
-                      <p className="text-sm text-midnight-400 mb-2">Source Content:</p>
-                      <p className="text-white text-sm line-clamp-3">{selectedPack.draft_content}</p>
-                    </div>
-                  )}
+                  {(() => {
+                    const selected = contentSource === 'packs' ? selectedPack : selectedLibraryContent;
+                    const contentText = selected && ('draft_content' in selected) 
+                      ? (selected.final_content || selected.draft_content)
+                      : null;
+                    return contentText && (
+                      <div className="mb-6 p-4 bg-midnight-800 rounded-xl border border-midnight-700">
+                        <p className="text-sm text-midnight-400 mb-2">Source Content:</p>
+                        <p className="text-white text-sm line-clamp-3">{contentText}</p>
+                      </div>
+                    );
+                  })()}
 
                   <motion.button
                     onClick={generateDerivatives}
@@ -459,7 +642,7 @@ export default function MultiPlatformPublisherPage() {
               )}
 
               {/* Step 3: Preview Derivatives */}
-              {currentStep === 'preview' && selectedPack && (
+              {currentStep === 'preview' && (contentSource === 'packs' ? selectedPack : selectedLibraryContent) && (
                 <motion.div
                   key="preview"
                   initial={{ opacity: 0, y: 20 }}
@@ -467,7 +650,9 @@ export default function MultiPlatformPublisherPage() {
                   exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  {selectedPack.derivatives ? (
+                  {(() => {
+                    const selected = contentSource === 'packs' ? selectedPack : selectedLibraryContent;
+                    return selected?.derivatives ? (
                     <>
                       <div className="glass-card rounded-2xl p-6">
                         <div className="flex items-center justify-between mb-6">
@@ -488,7 +673,7 @@ export default function MultiPlatformPublisherPage() {
                         </div>
 
                         <DerivativeTabs
-                          derivatives={selectedPack.derivatives}
+                          derivatives={selected.derivatives}
                           isLoading={isGenerating}
                         />
                       </div>
@@ -500,14 +685,16 @@ export default function MultiPlatformPublisherPage() {
                         transition={{ delay: 0.2 }}
                       >
                         <PublishActionsPanel
-                          packId={selectedPack.pack_id}
-                          hasDerivatives={!!selectedPack.derivatives}
+                          packId={contentSource === 'packs' && selectedPack ? selectedPack.pack_id : undefined}
+                          contentId={contentSource === 'library' && selectedLibraryContent ? selectedLibraryContent.content_id : undefined}
+                          hasDerivatives={!!selected.derivatives}
                         />
                       </motion.div>
                     </>
-                  ) : (
-                    <DerivativesEmptyState onGenerate={generateDerivatives} />
-                  )}
+                    ) : (
+                      <DerivativesEmptyState onGenerate={generateDerivatives} />
+                    );
+                  })()}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -516,40 +703,49 @@ export default function MultiPlatformPublisherPage() {
           {/* Right Sidebar */}
           <div className="space-y-6">
             {/* Content Stats */}
-            {selectedPack && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="glass-card rounded-2xl p-6"
-              >
-                <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-purple-400" />
-                  Content Stats
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-midnight-400">Word Count</span>
-                    <span className="text-white font-medium">{selectedPack.word_count}</span>
+            {(() => {
+              const selected = contentSource === 'packs' ? selectedPack : selectedLibraryContent;
+              return selected && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="glass-card rounded-2xl p-6"
+                >
+                  <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-purple-400" />
+                    Content Stats
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-midnight-400">Source</span>
+                      <span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-lg">
+                        {contentSource === 'packs' ? 'Pack' : 'Library'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-midnight-400">Word Count</span>
+                      <span className="text-white font-medium">{selected.word_count}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-midnight-400">Status</span>
+                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-lg">
+                        {selected.status}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-midnight-400">Derivatives</span>
+                      <span className={`px-2 py-1 text-xs rounded-lg ${
+                        selected.derivatives
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {selected.derivatives ? 'Ready' : 'Not Generated'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-midnight-400">Status</span>
-                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-lg">
-                      {selectedPack.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-midnight-400">Derivatives</span>
-                    <span className={`px-2 py-1 text-xs rounded-lg ${
-                      selectedPack.derivatives
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-amber-500/20 text-amber-400'
-                    }`}>
-                      {selectedPack.derivatives ? 'Ready' : 'Not Generated'}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+                </motion.div>
+              );
+            })()}
 
             {/* Integration Status */}
             <motion.div
@@ -609,34 +805,33 @@ export default function MultiPlatformPublisherPage() {
                   <h3 className="font-semibold text-white">Platform Integrations</h3>
                 </div>
 
-                <MailchimpAuthCard onSaveSuccess={checkIntegrationStatus} />
-                
-                {/* WordPress Card - Click to open modal */}
-                <div 
-                  onClick={() => setIsWordPressModalOpen(true)}
-                  className="cursor-pointer rounded-xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-6 backdrop-blur-sm transition-all hover:border-blue-500/40 hover:shadow-lg hover:shadow-blue-500/20"
+                {/* Mailchimp Accordion */}
+                <IntegrationAccordion
+                  platform="Mailchimp Integration"
+                  icon={<Mail className="h-5 w-5 text-white" />}
+                  description="Email newsletter campaigns"
+                  isConnected={mailchimpConnected}
+                  onStatusChange={checkIntegrationStatus}
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 p-2">
-                        <Globe className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">WordPress Integration</h3>
-                        <p className="text-sm text-gray-400">Blog post publishing</p>
-                      </div>
-                    </div>
-                    {wordpressConnected ? (
-                      <CheckCircle2 className="h-6 w-6 text-green-500" />
-                    ) : (
-                      <AlertCircle className="h-6 w-6 text-amber-500" />
-                    )}
-                  </div>
-                  <div className="mt-4 flex items-center justify-between rounded-lg bg-gray-900/50 p-3">
-                    <span className="text-sm text-gray-400">Click to configure</span>
-                    <Settings className="h-4 w-4 text-gray-400" />
-                  </div>
-                </div>
+                  <MailchimpAuthCard onSaveSuccess={checkIntegrationStatus} />
+                </IntegrationAccordion>
+
+                {/* WordPress Accordion */}
+                <IntegrationAccordion
+                  platform="WordPress Integration"
+                  icon={<Globe className="h-5 w-5 text-white" />}
+                  description="Blog post publishing"
+                  isConnected={wordpressConnected}
+                  onStatusChange={checkIntegrationStatus}
+                >
+                  <button
+                    onClick={() => setIsWordPressModalOpen(true)}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                  >
+                    <Settings className="w-5 h-5" />
+                    {wordpressConnected ? 'Edit Configuration' : 'Configure WordPress'}
+                  </button>
+                </IntegrationAccordion>
               </motion.div>
             )}
 

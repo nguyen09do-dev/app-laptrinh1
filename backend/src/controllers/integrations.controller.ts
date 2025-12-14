@@ -195,44 +195,74 @@ export class IntegrationsController {
   async publishToMailchimp(
     request: FastifyRequest<{
       Body: {
-        pack_id: string;
+        pack_id?: string;
+        content_id?: number;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { pack_id } = request.body;
+      const { pack_id, content_id } = request.body;
 
-      if (!pack_id) {
+      if (!pack_id && !content_id) {
         return reply.status(400).send({
           success: false,
           platform: 'mailchimp',
           error: {
-            message: 'Missing pack_id',
+            message: 'Missing pack_id or content_id',
           },
         });
       }
 
-      // Load pack with derivatives
-      const packResult = await db.query(
-        `SELECT pack_id, draft_content, derivatives FROM content_packs WHERE pack_id = $1`,
-        [pack_id]
-      );
+      let derivatives: any;
+      let sourceContent: string;
+      let sourceId: string;
 
-      if (packResult.rows.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          platform: 'mailchimp',
-          error: {
-            message: 'Content pack not found',
-          },
-        });
+      // Load from pack or library content
+      if (pack_id) {
+        const packResult = await db.query(
+          `SELECT pack_id, draft_content, derivatives FROM content_packs WHERE pack_id = $1`,
+          [pack_id]
+        );
+
+        if (packResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            platform: 'mailchimp',
+            error: {
+              message: 'Content pack not found',
+            },
+          });
+        }
+
+        const pack = packResult.rows[0];
+        derivatives = pack.derivatives;
+        sourceContent = pack.draft_content;
+        sourceId = pack_id;
+      } else if (content_id) {
+        const contentResult = await db.query(
+          `SELECT content_id, final_content, draft_content, derivatives FROM contents WHERE content_id = $1`,
+          [content_id]
+        );
+
+        if (contentResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            platform: 'mailchimp',
+            error: {
+              message: 'Library content not found',
+            },
+          });
+        }
+
+        const content = contentResult.rows[0];
+        derivatives = content.derivatives;
+        sourceContent = content.final_content || content.draft_content;
+        sourceId = `content-${content_id}`;
       }
-
-      const pack = packResult.rows[0];
 
       // Check if derivatives exist
-      if (!pack.derivatives || !pack.derivatives.email) {
+      if (!derivatives || !derivatives.email) {
         return reply.status(400).send({
           success: false,
           platform: 'mailchimp',
@@ -262,10 +292,10 @@ export class IntegrationsController {
       const config = credResult.rows[0].config;
 
       // Prepare payload from derivatives
-      const emailContent = pack.derivatives.email;
+      const emailContent = derivatives.email;
       const payload = {
-        subject: `Newsletter: ${pack.draft_content.substring(0, 50)}...`,
-        title: `Content Pack ${pack_id.substring(0, 8)}`,
+        subject: `Newsletter: ${sourceContent.substring(0, 50)}...`,
+        title: `Content ${sourceId.substring(0, 12)}`,
         content: emailContent,
       };
 
@@ -487,44 +517,71 @@ export class IntegrationsController {
   async publishToWordpress(
     request: FastifyRequest<{
       Body: {
-        pack_id: string;
+        pack_id?: string;
+        content_id?: number;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { pack_id } = request.body;
+      const { pack_id, content_id } = request.body;
 
-      if (!pack_id) {
+      if (!pack_id && !content_id) {
         return reply.status(400).send({
           success: false,
           platform: 'wordpress',
           error: {
-            message: 'Missing pack_id',
+            message: 'Missing pack_id or content_id',
           },
         });
       }
 
-      // Load pack with derivatives
-      const packResult = await db.query(
-        `SELECT pack_id, draft_content, derivatives FROM content_packs WHERE pack_id = $1`,
-        [pack_id]
-      );
+      let derivatives: any;
+      let sourceContent: string;
 
-      if (packResult.rows.length === 0) {
-        return reply.status(404).send({
-          success: false,
-          platform: 'wordpress',
-          error: {
-            message: 'Content pack not found',
-          },
-        });
+      // Load from pack or library content
+      if (pack_id) {
+        const packResult = await db.query(
+          `SELECT pack_id, draft_content, derivatives FROM content_packs WHERE pack_id = $1`,
+          [pack_id]
+        );
+
+        if (packResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            platform: 'wordpress',
+            error: {
+              message: 'Content pack not found',
+            },
+          });
+        }
+
+        const pack = packResult.rows[0];
+        derivatives = pack.derivatives;
+        sourceContent = pack.draft_content;
+      } else if (content_id) {
+        const contentResult = await db.query(
+          `SELECT content_id, final_content, draft_content, derivatives FROM contents WHERE content_id = $1`,
+          [content_id]
+        );
+
+        if (contentResult.rows.length === 0) {
+          return reply.status(404).send({
+            success: false,
+            platform: 'wordpress',
+            error: {
+              message: 'Library content not found',
+            },
+          });
+        }
+
+        const content = contentResult.rows[0];
+        derivatives = content.derivatives;
+        sourceContent = content.final_content || content.draft_content;
       }
-
-      const pack = packResult.rows[0];
 
       // Check if derivatives exist
-      if (!pack.derivatives || !pack.derivatives.blog_summary || !pack.derivatives.seo_description) {
+      if (!derivatives || !derivatives.blog_summary || !derivatives.seo_description) {
         return reply.status(400).send({
           success: false,
           platform: 'wordpress',
@@ -555,9 +612,9 @@ export class IntegrationsController {
 
       // Prepare payload from derivatives
       const payload = {
-        title: pack.draft_content.split('\n')[0].replace(/^#+ /, '').substring(0, 100), // Extract title from first line
-        content: pack.derivatives.blog_summary,
-        excerpt: pack.derivatives.seo_description,
+        title: sourceContent.split('\n')[0].replace(/^#+ /, '').substring(0, 100), // Extract title from first line
+        content: derivatives.blog_summary,
+        excerpt: derivatives.seo_description,
       };
 
       // Publish to WordPress

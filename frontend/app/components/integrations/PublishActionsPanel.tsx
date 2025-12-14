@@ -6,11 +6,12 @@ import { showToast } from '@/lib/toast';
 import { motion } from 'framer-motion';
 
 interface PublishActionsPanelProps {
-  packId: string;
+  packId?: string;
+  contentId?: number;
   hasDerivatives?: boolean;
 }
 
-export function PublishActionsPanel({ packId, hasDerivatives = false }: PublishActionsPanelProps) {
+export function PublishActionsPanel({ packId, contentId, hasDerivatives = false }: PublishActionsPanelProps) {
   const [isPublishingMailchimp, setIsPublishingMailchimp] = useState(false);
   const [isPublishingWordpress, setIsPublishingWordpress] = useState(false);
   const [mailchimpResult, setMailchimpResult] = useState<{ campaignId?: string; sent?: boolean } | null>(null);
@@ -26,10 +27,12 @@ export function PublishActionsPanel({ packId, hasDerivatives = false }: PublishA
     const toastId = showToast.loading('Publishing to Mailchimp...');
 
     try {
+      const bodyPayload = packId ? { pack_id: packId } : { content_id: contentId };
+      
       const response = await fetch('http://localhost:3001/api/integrations/mailchimp/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack_id: packId }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -80,10 +83,12 @@ export function PublishActionsPanel({ packId, hasDerivatives = false }: PublishA
     const toastId = showToast.loading('Publishing to WordPress...');
 
     try {
+      const bodyPayload = packId ? { pack_id: packId } : { content_id: contentId };
+      
       const response = await fetch('http://localhost:3001/api/integrations/wordpress/publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pack_id: packId }),
+        body: JSON.stringify(bodyPayload),
       });
 
       const data = await response.json();

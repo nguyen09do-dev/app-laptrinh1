@@ -206,6 +206,77 @@ export class DerivativesController {
   }
 
   /**
+   * POST /api/contents/derivatives
+   * Generate multi-platform derivatives from library content
+   */
+  async generateDerivativesFromContent(
+    request: FastifyRequest<{
+      Body: {
+        content_id: number;
+        language?: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
+    try {
+      const { content_id, language = 'vi' } = request.body;
+
+      // Get content
+      const contentResult = await db.query(
+        `SELECT content_id, title, final_content, draft_content FROM contents WHERE content_id = $1`,
+        [content_id]
+      );
+
+      if (!contentResult.rows[0]) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Library content not found',
+        });
+      }
+
+      const content = contentResult.rows[0];
+      const sourceText = content.final_content || content.draft_content;
+
+      if (!sourceText || sourceText.trim().length === 0) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Content has no text to generate derivatives from',
+        });
+      }
+
+      console.log(`🚀 Generating derivatives for library content: ${content.title}`);
+
+      // Generate derivatives
+      const derivatives = await derivativeGenerator.generateDerivativesFromDraft(
+        sourceText,
+        { language }
+      );
+
+      // Save to database (update derivatives column in contents table)
+      await db.query(
+        `UPDATE contents SET derivatives = $1, updated_at = NOW() WHERE content_id = $2`,
+        [JSON.stringify(derivatives), content_id]
+      );
+
+      console.log(`✅ Derivatives saved for content_id: ${content_id}`);
+
+      return reply.send({
+        success: true,
+        data: {
+          derivatives,
+        },
+        message: 'Derivatives generated successfully',
+      });
+    } catch (error: any) {
+      console.error('Error generating derivatives from content:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message || 'Failed to generate derivatives',
+      });
+    }
+  }
+
+  /**
    * POST /api/packs/:packId/derivatives/regenerate
    * Regenerate a specific derivative type
    */
@@ -295,3 +366,4 @@ export class DerivativesController {
 
 // Export singleton instance
 export const derivativesController = new DerivativesController();
+

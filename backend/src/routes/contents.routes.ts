@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { contentsController } from '../controllers/contents.controller.js';
+import { derivativesController } from '../controllers/derivatives.controller.js';
 
 export async function contentsRoutes(fastify: FastifyInstance) {
   fastify.get('/contents', {
@@ -66,5 +67,24 @@ export async function contentsRoutes(fastify: FastifyInstance) {
       },
     },
     handler: contentsController.setActiveVersion.bind(contentsController),
+  });
+
+  /**
+   * POST /api/contents/derivatives
+   * Generate multi-platform derivatives from library content
+   * Body: { content_id: number }
+   */
+  fastify.post('/contents/derivatives', {
+    schema: {
+      body: {
+        type: 'object',
+        properties: {
+          content_id: { type: 'number' },
+          language: { type: 'string' },
+        },
+        required: ['content_id'],
+      },
+    },
+    handler: derivativesController.generateDerivativesFromContent.bind(derivativesController),
   });
 }
