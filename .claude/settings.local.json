@@ -58,7 +58,9 @@
       "Bash(node check-content.js:*)",
       "Bash(if exist \"G:\\Code01-HWAIcontentmulti\\backend\\check-content.js\" del \"G:\\Code01-HWAIcontentmulti\\backend\\check-content.js\")",
       "Bash(psql:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(if exist \"G:\\Code01-HWAIcontentmulti\\frontend\\node_modules\\.cache\" rmdir /s /q \"G:\\Code01-HWAIcontentmulti\\frontend\\node_modules\\.cache\")",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

@@ -184,3 +184,12 @@ Khi tạo content, hệ thống sẽ:
 - Backend logs để xem quá trình RAG
 
 
+
+
+
+
+
+
+
+
+

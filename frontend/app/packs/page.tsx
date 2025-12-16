@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DraftEditor } from '../components/DraftEditor';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
+import { apiGet, createAbortController } from '@/lib/apiClient';
 import {
   Package,
   FileText,
@@ -129,43 +130,54 @@ export default function PacksPage() {
 
   // Fetch data
   const fetchData = useCallback(async () => {
+    let mounted = true;
+    const controller = createAbortController();
+
     try {
       setLoading(true);
 
-      // Fetch briefs
-      let briefsData: Brief[] = [];
-      let packsData: ContentPack[] = [];
+      // Fetch briefs and packs in parallel
+      const [briefsData, packsData] = await Promise.allSettled([
+        apiGet<Brief[]>('/briefs', { signal: controller.signal, timeout: 10000 }),
+        apiGet<ContentPack[]>('/packs', { signal: controller.signal, timeout: 10000 }),
+      ]);
 
-      try {
-        const briefsRes = await fetch('http://localhost:3001/api/briefs');
-        const briefsJson = await briefsRes.json();
-        briefsData = Array.isArray(briefsJson.data) ? briefsJson.data : [];
-      } catch (e) {
-        console.error('Error fetching briefs:', e);
+      if (!mounted) return;
+
+      if (briefsData.status === 'fulfilled') {
+        setBriefs(Array.isArray(briefsData.value) ? briefsData.value : []);
+      } else {
+        console.error('Error fetching briefs:', briefsData.reason);
       }
 
-      try {
-        const packsRes = await fetch('http://localhost:3001/api/packs');
-        const packsJson = await packsRes.json();
-        packsData = Array.isArray(packsJson.data) ? packsJson.data : [];
-      } catch (e) {
-        console.error('Error fetching packs:', e);
+      if (packsData.status === 'fulfilled') {
+        setPacks(Array.isArray(packsData.value) ? packsData.value : []);
+      } else {
+        console.error('Error fetching packs:', packsData.reason);
         // Packs table might not exist yet - that's OK
       }
-
-      setBriefs(briefsData);
-      setPacks(packsData);
-    } catch (error) {
+    } catch (error: any) {
+      if (!mounted) return;
       console.error('Error fetching data:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Không thể tải dữ liệu';
+      const errorMsg = error.message || 'Không thể tải dữ liệu';
       showToast.error(errorMsg);
     } finally {
-      setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    const controller = createAbortController();
+
     fetchData();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, [fetchData]);
 
   // Generate draft with options (non-streaming, JSON response)

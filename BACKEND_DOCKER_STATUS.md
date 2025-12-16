@@ -93,3 +93,5 @@ docker-compose up -d postgres
 **Last Updated**: 2025-12-12  
 **Status**: Backend runs locally, PostgreSQL in Docker
 
+
+

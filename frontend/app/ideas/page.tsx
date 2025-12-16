@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
 import { bulkDeleteIdeas } from '@/lib/bulkDelete';
+import { apiGet, apiPost, apiPatch, apiDelete, createAbortController } from '@/lib/apiClient';
 import { Lightbulb, Search, Filter, LayoutGrid, Table2, Trash2 } from 'lucide-react';
 
 interface Idea {
@@ -95,19 +96,13 @@ export default function IdeasPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/ideas');
-      const result: ApiResponse<Idea[]> = await response.json();
-
-      if (result.success && result.data) {
-        setIdeas(result.data);
-      } else {
-        showToast.error(result.error || 'Không thể tải ideas');
-        setError(result.error || 'Failed to fetch ideas');
-      }
-    } catch (err) {
+      const data = await apiGet<Idea[]>('/ideas', { timeout: 15000 });
+      setIdeas(data || []);
+    } catch (err: any) {
       console.error('Fetch error:', err);
-      showToast.error('Không thể kết nối đến server');
-      setError('Không thể kết nối đến server');
+      const errorMsg = err.message || 'Không thể kết nối đến server';
+      showToast.error(errorMsg);
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -140,28 +135,18 @@ export default function IdeasPage() {
       console.log('Request body AFTER stringify =', JSON.stringify(requestBody));
       console.log('🚨 DEBUG END 🚨');
 
-      const response = await fetch('http://localhost:3001/api/ideas/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-
-      const result: ApiResponse<Idea[]> = await response.json();
-
-      if (result.success) {
-        await fetchIdeas();
-        setPersona('');
-        setIndustry('');
-        setError(null);
-        showToast.success(`Đã tạo ${quantity} ideas mới thành công!`);
-      } else {
-        showToast.error(result.error || 'Không thể tạo ideas');
-        setError(result.error || 'Failed to generate ideas');
-      }
-    } catch (err) {
+      await apiPost<Idea[]>('/ideas/generate', requestBody, { timeout: 60000 });
+      
+      await fetchIdeas();
+      setPersona('');
+      setIndustry('');
+      setError(null);
+      showToast.success(`Đã tạo ${quantity} ideas mới thành công!`);
+    } catch (err: any) {
       console.error('Generate error:', err);
-      showToast.error('Không thể kết nối đến server');
-      setError('Không thể kết nối đến server');
+      const errorMsg = err.message || 'Không thể kết nối đến server';
+      showToast.error(errorMsg);
+      setError(errorMsg);
     } finally {
       setGenerating(false);
     }
@@ -169,76 +154,43 @@ export default function IdeasPage() {
 
   const handleApprove = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/ideas/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'approved' })
-      });
-
-      const result: ApiResponse<Idea> = await response.json();
-
-      if (result.success) {
-        await fetchIdeas();
-        if (selectedIdea?.id === id) {
-          setSelectedIdea(result.data || null);
-        }
-        showToast.success('Đã duyệt idea thành công!');
-      } else {
-        showToast.error(result.error || 'Không thể duyệt idea');
-        setError(result.error || 'Failed to approve idea');
+      const data = await apiPatch<Idea>(`/ideas/${id}/status`, { status: 'approved' });
+      await fetchIdeas();
+      if (selectedIdea?.id === id) {
+        setSelectedIdea(data || null);
       }
-    } catch (err) {
+      showToast.success('Đã duyệt idea thành công!');
+    } catch (err: any) {
       console.error('Approve error:', err);
-      showToast.error('Không thể duyệt idea');
-      setError('Không thể duyệt idea');
+      const errorMsg = err.message || 'Không thể duyệt idea';
+      showToast.error(errorMsg);
+      setError(errorMsg);
     }
   };
 
   const handleShortlist = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/ideas/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'shortlisted' })
-      });
-
-      const result: ApiResponse<Idea> = await response.json();
-
-      if (result.success) {
-        await fetchIdeas();
-        if (selectedIdea?.id === id) {
-          setSelectedIdea(result.data || null);
-        }
-      } else {
-        setError(result.error || 'Failed to shortlist idea');
+      const data = await apiPatch<Idea>(`/ideas/${id}/status`, { status: 'shortlisted' });
+      await fetchIdeas();
+      if (selectedIdea?.id === id) {
+        setSelectedIdea(data || null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Shortlist error:', err);
-      setError('Không thể shortlist idea');
+      setError(err.message || 'Không thể shortlist idea');
     }
   };
 
   const handleArchive = async (id: number) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/ideas/${id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'archived' })
-      });
-
-      const result: ApiResponse<Idea> = await response.json();
-
-      if (result.success) {
-        await fetchIdeas();
-        if (selectedIdea?.id === id) {
-          setSelectedIdea(null);
-        }
-      } else {
-        setError(result.error || 'Failed to archive idea');
+      await apiPatch<Idea>(`/ideas/${id}/status`, { status: 'archived' });
+      await fetchIdeas();
+      if (selectedIdea?.id === id) {
+        setSelectedIdea(null);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Archive error:', err);
-      setError('Không thể archive idea');
+      setError(err.message || 'Không thể archive idea');
     }
   };
 
@@ -247,22 +199,13 @@ export default function IdeasPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/ideas/${id}/implementation`, {
-        method: 'POST',
-      });
-
-      const result: ApiResponse<Idea> = await response.json();
-
-      if (result.success && result.data) {
-        // Update local state
-        setIdeas((prev) => prev.map(idea => idea.id === id ? result.data! : idea));
-        setSelectedIdea(result.data);
-      } else {
-        setError(result.error || 'Failed to generate implementation');
-      }
-    } catch (err) {
+      const data = await apiPost<Idea>(`/ideas/${id}/implementation`, {}, { timeout: 60000 });
+      // Update local state
+      setIdeas((prev) => prev.map(idea => idea.id === id ? data : idea));
+      setSelectedIdea(data);
+    } catch (err: any) {
       console.error('Implementation error:', err);
-      setError('Không thể tạo implementation plan');
+      setError(err.message || 'Không thể tạo implementation plan');
     } finally {
       setGeneratingImplementation(false);
     }
@@ -272,23 +215,15 @@ export default function IdeasPage() {
     if (!confirm('Bạn có chắc muốn xóa idea này?')) return;
 
     try {
-      const response = await fetch(`http://localhost:3001/api/ideas/${id}`, {
-        method: 'DELETE'
-      });
-      const result: ApiResponse<null> = await response.json();
-
-      if (result.success) {
-        setIdeas((prev) => prev.filter((idea) => idea.id !== id));
-        if (selectedIdea?.id === id) setSelectedIdea(null);
-        showToast.success('Đã xóa idea thành công');
-      } else {
-        setError(result.error || 'Failed to delete idea');
-        showToast.error(result.error || 'Không thể xóa idea');
-      }
-    } catch (err) {
+      await apiDelete(`/ideas/${id}`);
+      setIdeas((prev) => prev.filter((idea) => idea.id !== id));
+      if (selectedIdea?.id === id) setSelectedIdea(null);
+      showToast.success('Đã xóa idea thành công');
+    } catch (err: any) {
       console.error('Delete error:', err);
-      setError('Không thể xóa idea');
-      showToast.error('Không thể xóa idea');
+      const errorMsg = err.message || 'Không thể xóa idea';
+      setError(errorMsg);
+      showToast.error(errorMsg);
     }
   };
 
@@ -346,31 +281,36 @@ export default function IdeasPage() {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/briefs/from-idea/${ideaId}`, {
-        method: 'POST',
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showToast.success('Đã tạo brief thành công!');
-        // Optionally close modal or refresh
-        setSelectedIdea(null);
-      } else {
-        showToast.error(result.error || 'Không thể tạo brief');
-        setError(result.error || 'Không thể tạo brief');
-      }
-    } catch (err) {
+      await apiPost(`/briefs/from-idea/${ideaId}`, {}, { timeout: 30000 });
+      showToast.success('Đã tạo brief thành công!');
+      // Optionally close modal or refresh
+      setSelectedIdea(null);
+    } catch (err: any) {
       console.error('Error creating brief:', err);
-      showToast.error('Lỗi khi tạo brief');
-      setError('Lỗi khi tạo brief');
+      const errorMsg = err.message || 'Lỗi khi tạo brief';
+      showToast.error(errorMsg);
+      setError(errorMsg);
     } finally {
       setCreatingBrief(null);
     }
   };
 
   useEffect(() => {
-    fetchIdeas();
+    let mounted = true;
+    const controller = createAbortController();
+
+    const loadData = async () => {
+      if (mounted) {
+        await fetchIdeas();
+      }
+    };
+
+    loadData();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, []);
 
   const formatDate = (dateString: string) => {

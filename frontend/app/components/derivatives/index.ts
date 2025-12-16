@@ -8,8 +8,11 @@ export { SEOPreview } from './SEOPreview';
 export { DerivativeTabs } from './DerivativeTabs';
 export { DerivativesLoading } from './DerivativesLoading';
 export { DerivativesEmptyState } from './DerivativesEmptyState';
+export { PlatformCard } from './PlatformCard';
 
 // Export types
 export type { ContentDerivatives } from './DerivativeTabs';
+
+
 
 

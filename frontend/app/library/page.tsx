@@ -37,8 +37,10 @@ export default function LibraryPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as LibraryTab | null;
   const [activeTab, setActiveTab] = useState<LibraryTab>(tabParam || 'published');
+  
+  // Note: 'published' tab is actually "Approved Content" - content that has been reviewed and approved
 
-  // Published Content State
+  // Approved Content State (reviewed and approved for publishing)
   const [contents, setContents] = useState<Content[]>([]);
   const [selectedContent, setSelectedContent] = useState<Content | null>(null);
   const [loadingContents, setLoadingContents] = useState(true);
@@ -207,7 +209,7 @@ export default function LibraryPage() {
             }`}
           >
             <FileText className="w-4 h-4" />
-            Published Content
+            Approved Content
           </button>
           <button
             onClick={() => setActiveTab('documents')}

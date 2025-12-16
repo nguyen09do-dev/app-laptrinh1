@@ -27,11 +27,36 @@ const nextConfig = {
   // Enable experimental features for better performance
   experimental: {
     optimizePackageImports: ['lucide-react', 'framer-motion', 'recharts'],
+    // Enable faster builds and HMR
+    turbo: {
+      resolveAlias: {
+        '@': './app',
+      },
+    },
+    // Enable memory cache
+    memoryBasedWorkersCount: true,
+    // Faster webpack config
+    webpackBuildWorker: true,
   },
 
   // Production optimizations
   poweredByHeader: false,
   compress: true,
+
+  // Optimize chunking
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.optimization.splitChunks.cacheGroups = {
+        ...config.optimization.splitChunks.cacheGroups,
+        commons: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+        },
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = nextConfig;

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { showToast } from '@/lib/toast';
+import { apiGet, apiPost, createAbortController } from '@/lib/apiClient';
 import {
   DerivativeTabs,
   DerivativesEmptyState,
@@ -67,30 +68,48 @@ export default function DerivativesPage() {
 
   // Fetch packs on mount
   useEffect(() => {
-    fetchPacks();
-  }, []);
+    let mounted = true;
+    const controller = createAbortController();
 
-  const fetchPacks = async () => {
-    try {
-      const response = await fetch('http://localhost:3001/api/packs');
-      const data = await response.json();
-      if (data.success) {
-        // Filter packs that have draft content
-        const packsWithContent = data.data.filter((p: ContentPack) => p.draft_content);
-        setPacks(packsWithContent);
+    const loadPacks = async () => {
+      try {
+        const data = await apiGet<ContentPack[]>('/packs', { 
+          signal: controller.signal, 
+          timeout: 10000 
+        });
         
-        // Auto-select first pack if available
-        if (packsWithContent.length > 0 && !selectedPack) {
-          setSelectedPack(packsWithContent[0]);
+        if (!mounted) return;
+
+        if (data) {
+          // Filter packs that have draft content
+          const packsWithContent = Array.isArray(data) 
+            ? data.filter((p: ContentPack) => p.draft_content)
+            : [];
+          setPacks(packsWithContent);
+          
+          // Auto-select first pack if available
+          if (packsWithContent.length > 0 && !selectedPack) {
+            setSelectedPack(packsWithContent[0]);
+          }
+        }
+      } catch (error: any) {
+        if (!mounted) return;
+        console.error('Failed to fetch packs:', error);
+        showToast.error(error.message || 'Failed to load content packs');
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
         }
       }
-    } catch (error) {
-      console.error('Failed to fetch packs:', error);
-      showToast.error('Failed to load content packs');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    loadPacks();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
+  }, [selectedPack]);
 
   const generateDerivatives = async () => {
     if (!selectedPack) {
@@ -100,35 +119,25 @@ export default function DerivativesPage() {
 
     setIsGenerating(true);
     try {
-      const response = await fetch('http://localhost:3001/api/packs/derivatives', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pack_id: selectedPack.pack_id,
-          language: 'vi',
-        }),
-      });
-
-      const data = await response.json();
+      const data = await apiPost<{ derivatives: any }>('/packs/derivatives', {
+        pack_id: selectedPack.pack_id,
+        language: 'vi',
+      }, { timeout: 60000 });
       
-      if (data.success) {
-        showToast.success('Derivatives generated successfully!');
-        
-        // Update selected pack with new derivatives
-        setSelectedPack({
-          ...selectedPack,
-          derivatives: data.data.derivatives,
-        });
-        
-        // Update in packs list
-        setPacks(packs.map(p => 
-          p.pack_id === selectedPack.pack_id 
-            ? { ...p, derivatives: data.data.derivatives }
-            : p
-        ));
-      } else {
-        throw new Error(data.error || 'Failed to generate derivatives');
-      }
+      showToast.success('Derivatives generated successfully!');
+      
+      // Update selected pack with new derivatives
+      setSelectedPack({
+        ...selectedPack,
+        derivatives: data.derivatives,
+      });
+      
+      // Update in packs list
+      setPacks(packs.map(p => 
+        p.pack_id === selectedPack.pack_id 
+          ? { ...p, derivatives: data.derivatives }
+          : p
+      ));
     } catch (error: any) {
       console.error('Generation error:', error);
       showToast.error(error.message || 'Failed to generate derivatives');
@@ -142,24 +151,15 @@ export default function DerivativesPage() {
     
     setIsGenerating(true);
     try {
-      const response = await fetch(
-        `http://localhost:3001/api/packs/${selectedPack.pack_id}/derivatives/regenerate`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type, language: 'vi' }),
-        }
+      await apiPost(
+        `/packs/${selectedPack.pack_id}/derivatives/regenerate`,
+        { type, language: 'vi' },
+        { timeout: 60000 }
       );
-
-      const data = await response.json();
       
-      if (data.success) {
-        showToast.success(`${type} regenerated successfully!`);
-        // Refresh pack data
-        await fetchPackDerivatives(selectedPack.pack_id);
-      } else {
-        throw new Error(data.error);
-      }
+      showToast.success(`${type} regenerated successfully!`);
+      // Refresh pack data
+      await fetchPackDerivatives(selectedPack.pack_id);
     } catch (error: any) {
       showToast.error(error.message || 'Failed to regenerate');
     } finally {
@@ -169,13 +169,12 @@ export default function DerivativesPage() {
 
   const fetchPackDerivatives = async (packId: string) => {
     try {
-      const response = await fetch(`http://localhost:3001/api/packs/${packId}/derivatives`);
-      const data = await response.json();
+      const data = await apiGet<{ derivatives: any }>(`/packs/${packId}/derivatives`, { timeout: 10000 });
       
-      if (data.success && data.data) {
-        setSelectedPack(prev => prev ? { ...prev, derivatives: data.data.derivatives } : null);
+      if (data && data.derivatives) {
+        setSelectedPack(prev => prev ? { ...prev, derivatives: data.derivatives } : null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch derivatives:', error);
     }
   };

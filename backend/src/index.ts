@@ -16,6 +16,9 @@ import { db } from './lib/db.js';
 // Tạo Fastify instance
 const fastify = Fastify({
   logger: true, // Bật logging để debug
+  requestTimeout: 30000, // 30 seconds timeout for requests
+  keepAliveTimeout: 5000, // 5 seconds keep-alive
+  bodyLimit: 10 * 1024 * 1024, // 10MB body limit
 });
 
 // Đăng ký CORS để frontend có thể gọi API
@@ -47,7 +50,54 @@ fastify.register(integrationsRoutes, { prefix: '/api' }); // Third-party integra
 
 // Health check endpoint
 fastify.get('/health', async () => {
-  return { status: 'ok', timestamp: new Date().toISOString() };
+  try {
+    // Quick database check
+    await db.query('SELECT 1');
+    return { 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      pool: {
+        total: db.totalCount,
+        idle: db.idleCount,
+        active: db.totalCount - db.idleCount,
+      }
+    };
+  } catch (error) {
+    return { 
+      status: 'error', 
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+});
+
+// Global error handler
+fastify.setErrorHandler((error, request, reply) => {
+  fastify.log.error(error);
+  
+  // Handle timeout errors
+  if (error.code === 'FST_ERR_REQ_TIMEOUT') {
+    return reply.status(504).send({
+      success: false,
+      error: 'Request timeout - Server đang xử lý quá lâu. Vui lòng thử lại.',
+    });
+  }
+  
+  // Handle database connection errors
+  if (error.code === 'ECONNREFUSED' || error.message?.includes('connection')) {
+    return reply.status(503).send({
+      success: false,
+      error: 'Database connection error - Vui lòng kiểm tra database đã chạy chưa.',
+    });
+  }
+  
+  // Default error response
+  return reply.status(error.statusCode || 500).send({
+    success: false,
+    error: error.message || 'Internal server error',
+  });
 });
 
 // Hàm khởi động server

@@ -6,6 +6,7 @@ import { DraftEditor } from '../components/DraftEditor';
 import { EditDraftModal } from '../components/EditDraftModal';
 import { TableSkeleton } from '@/components/ui/loading-skeleton';
 import { showToast } from '@/lib/toast';
+import { apiGet, createAbortController } from '@/lib/apiClient';
 import {
   DerivativeTabs,
   DerivativesEmptyState,
@@ -143,46 +144,64 @@ export default function ContentStudioPage() {
 
   // Fetch data
   const fetchData = useCallback(async () => {
+    let mounted = true;
+    const controller = createAbortController();
+
     try {
       setLoading(true);
 
-      let briefsData: Brief[] = [];
-      let packsData: ContentPack[] = [];
+      // Fetch briefs and packs in parallel
+      const [briefsData, packsData] = await Promise.allSettled([
+        apiGet<Brief[]>('/briefs', { signal: controller.signal, timeout: 10000 }),
+        apiGet<ContentPack[]>('/packs', { signal: controller.signal, timeout: 10000 }),
+      ]);
 
-      try {
-        const briefsRes = await fetch('http://localhost:3001/api/briefs');
-        const briefsJson = await briefsRes.json();
-        briefsData = Array.isArray(briefsJson.data) ? briefsJson.data : [];
-      } catch (e) {
-        console.error('Error fetching briefs:', e);
+      if (!mounted) return;
+
+      let briefsArray: Brief[] = [];
+      let packsArray: ContentPack[] = [];
+
+      if (briefsData.status === 'fulfilled') {
+        briefsArray = Array.isArray(briefsData.value) ? briefsData.value : [];
+      } else {
+        console.error('Error fetching briefs:', briefsData.reason);
       }
 
-      try {
-        const packsRes = await fetch('http://localhost:3001/api/packs');
-        const packsJson = await packsRes.json();
-        packsData = Array.isArray(packsJson.data) ? packsJson.data : [];
-      } catch (e) {
-        console.error('Error fetching packs:', e);
+      if (packsData.status === 'fulfilled') {
+        packsArray = Array.isArray(packsData.value) ? packsData.value : [];
+      } else {
+        console.error('Error fetching packs:', packsData.reason);
       }
 
-      setBriefs(briefsData);
-      setPacks(packsData);
+      setBriefs(briefsArray);
+      setPacks(packsArray);
       
       // Auto-select first pack if available and none selected
-      if (packsData.length > 0 && !selectedPack) {
-        setSelectedPack(packsData[0]);
+      if (packsArray.length > 0 && !selectedPack) {
+        setSelectedPack(packsArray[0]);
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (!mounted) return;
       console.error('Error fetching data:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Không thể tải dữ liệu';
+      const errorMsg = error.message || 'Không thể tải dữ liệu';
       showToast.error(errorMsg);
     } finally {
-      setLoading(false);
+      if (mounted) {
+        setLoading(false);
+      }
     }
   }, [selectedPack]);
 
   useEffect(() => {
+    let mounted = true;
+    const controller = createAbortController();
+
     fetchData();
+
+    return () => {
+      mounted = false;
+      controller.abort();
+    };
   }, [fetchData]);
 
   // Generate draft with options
