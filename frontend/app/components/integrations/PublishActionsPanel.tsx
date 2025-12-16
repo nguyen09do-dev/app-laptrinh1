@@ -37,7 +37,13 @@ export function PublishActionsPanel({ packId, contentId, hasDerivatives = false 
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || errorData.error?.details || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(
+          errorData.error?.message ||
+            errorData.error?.details ||
+            errorData.error ||
+            errorData.message ||
+            `HTTP ${response.status}: ${response.statusText}`
+        );
       }
 
       const data = await response.json();

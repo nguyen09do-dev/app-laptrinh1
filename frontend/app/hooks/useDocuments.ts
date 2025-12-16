@@ -1,18 +1,26 @@
 import useSWR from 'swr';
-import { apiGet } from '@/lib/apiClient';
 
 const API_BASE = 'http://localhost:3001/api';
 
 // Optimized fetcher with timeout and error handling
+// Returns the full response object (not just .data) for RAG endpoints
 const fetcher = async (url: string) => {
   try {
-    // Extract endpoint from full URL
-    const endpoint = url.replace(API_BASE, '');
-    return await apiGet(endpoint, { timeout: 15000 }); // Increased timeout
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    
+    return await response.json();
   } catch (error: any) {
     console.error('Fetch error:', error);
     // Better error messages
-    if (error.message?.includes('timeout') || error.message?.includes('aborted')) {
+    if (error.name === 'TimeoutError' || error.message?.includes('timeout') || error.message?.includes('aborted')) {
       throw new Error('Request timeout - Server đang phản hồi chậm. Vui lòng thử lại.');
     }
     if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {

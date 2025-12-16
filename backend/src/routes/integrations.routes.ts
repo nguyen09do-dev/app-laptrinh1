@@ -11,6 +11,14 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
   // ==========================================
 
   /**
+   * GET /api/integrations/mailchimp
+   * Get Mailchimp credentials (masked)
+   */
+  fastify.get('/integrations/mailchimp', {
+    handler: integrationsController.getMailchimpConfig.bind(integrationsController),
+  });
+
+  /**
    * POST /api/integrations/mailchimp/save
    * Save Mailchimp API credentials
    *
@@ -86,8 +94,9 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
         type: 'object',
         properties: {
           pack_id: { type: 'string', format: 'uuid' },
+          content_id: { type: 'integer' },
         },
-        required: ['pack_id'],
+        anyOf: [{ required: ['pack_id'] }, { required: ['content_id'] }],
       },
       response: {
         200: {
@@ -206,10 +215,22 @@ export async function integrationsRoutes(fastify: FastifyInstance) {
   // FACEBOOK INTEGRATION
   // ==========================================
 
+  // GET Facebook config
+  fastify.get('/integrations/facebook', {
+    handler: integrationsController.getFacebookConfig.bind(integrationsController),
+  });
+
+  // POST Facebook config (save)
+  fastify.post('/integrations/facebook', {
+    handler: integrationsController.saveFacebookCredentials.bind(integrationsController),
+  });
+
+  // Legacy route for backward compatibility
   fastify.post('/integrations/facebook/save', {
     handler: integrationsController.saveFacebookCredentials.bind(integrationsController),
   });
 
+  // Test Facebook connection
   fastify.post('/integrations/facebook/test', {
     handler: integrationsController.testFacebookConfig.bind(integrationsController),
   });

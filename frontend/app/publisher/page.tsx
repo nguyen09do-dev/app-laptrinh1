@@ -24,9 +24,12 @@ import {
   Edit2,
   Link2Off,
   Clock,
+  Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import { WordPressConfigModal } from '../components/integrations/WordPressConfigModal';
 import { MailchimpAuthCard } from '../components/integrations/MailchimpAuthCard';
+import FacebookConfigModal from '../components/integrations/FacebookConfigModal';
 
 interface ApprovedContent {
   content_id: number;
@@ -63,8 +66,9 @@ export default function PublisherPageDemo() {
   // Modal states
   const [isWordPressModalOpen, setIsWordPressModalOpen] = useState(false);
   const [isMailchimpModalOpen, setIsMailchimpModalOpen] = useState(false);
+  const [isFacebookModalOpen, setIsFacebookModalOpen] = useState(false);
   
-  // Publishing history
+  // Publishing history - load from localStorage on init
   const [publishHistory, setPublishHistory] = useState<Array<{
     id: string;
     platform: string;
@@ -72,7 +76,20 @@ export default function PublisherPageDemo() {
     timestamp: string;
     success: boolean;
     details?: any;
-  }>>([]);
+  }>>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('publishHistory');
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+  
+  // Persist history to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && publishHistory.length > 0) {
+      localStorage.setItem('publishHistory', JSON.stringify(publishHistory.slice(0, 50))); // Keep last 50
+    }
+  }, [publishHistory]);
 
   // Platform selection
   const [selectedPlatforms, setSelectedPlatforms] = useState<Record<string, boolean>>({
@@ -85,9 +102,9 @@ export default function PublisherPageDemo() {
     zalo: false,
   });
 
-  // Platform configs (mock data for demo)
-  const [platforms] = useState<PlatformConfig[]>([
-    { key: 'mailchimp', name: 'Mailchimp', icon: Mail, color: 'text-amber-400', connected: true },
+  // Platform configs
+  const [platforms, setPlatforms] = useState<PlatformConfig[]>([
+    { key: 'mailchimp', name: 'Mailchimp', icon: Mail, color: 'text-amber-400', connected: false },
     { key: 'wordpress', name: 'WordPress', icon: BookOpen, color: 'text-blue-400', connected: false },
     { key: 'facebook', name: 'Facebook', icon: Facebook, color: 'text-[#1877F2]', connected: false },
     { key: 'twitter', name: 'Twitter', icon: Twitter, color: 'text-[#1DA1F2]', connected: false },
@@ -98,6 +115,7 @@ export default function PublisherPageDemo() {
 
   useEffect(() => {
     fetchContents();
+    checkPlatformConnections();
   }, []);
 
   const fetchContents = async () => {
@@ -123,6 +141,36 @@ export default function PublisherPageDemo() {
       showToast.error('Failed to load approved content');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const checkPlatformConnections = async () => {
+    try {
+      // Check Mailchimp
+      const mailchimpRes = await fetch('http://localhost:3001/api/integrations/mailchimp');
+      const mailchimpData = await mailchimpRes.json();
+      
+      // Check Facebook
+      const facebookRes = await fetch('http://localhost:3001/api/integrations/facebook');
+      const facebookData = await facebookRes.json();
+      
+      console.log('📊 Mailchimp status:', mailchimpData);
+      console.log('📊 Facebook status:', facebookData);
+      
+      // Update platform statuses
+      setPlatforms(prev => prev.map(platform => {
+        if (platform.key === 'mailchimp') {
+          return { ...platform, connected: mailchimpData.success && !!mailchimpData.data };
+        }
+        if (platform.key === 'facebook') {
+          return { ...platform, connected: facebookData.success && facebookData.status?.connected === true };
+        }
+        return platform;
+      }));
+      
+      console.log('✅ Platform connections checked');
+    } catch (error) {
+      console.error('❌ Failed to check platform connections:', error);
     }
   };
 
@@ -179,7 +227,7 @@ export default function PublisherPageDemo() {
           results.push({
             platform: platform.name,
             success: false,
-            error: result.error?.message || 'Unknown error',
+            error: result.error?.message || result.error || result.message || 'Unknown error',
           });
           
           // Add failure to history
@@ -505,7 +553,11 @@ export default function PublisherPageDemo() {
                                 onClick={async () => {
                                   const toastId = showToast.loading('Testing Mailchimp connection...');
                                   try {
-                                    const response = await fetch('http://localhost:3001/api/integrations/mailchimp/test');
+                                    const response = await fetch('http://localhost:3001/api/integrations/mailchimp/test', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({}),
+                                    });
                                     const data = await response.json();
                                     showToast.dismiss(toastId);
                                     if (data.success) {
@@ -603,15 +655,74 @@ export default function PublisherPageDemo() {
                           <Icon className={`w-6 h-6 ${platform.color}`} />
                           <div>
                             <p className="text-white font-medium">{platform.name}</p>
-                            <p className="text-xs text-midnight-500 mt-0.5">Not configured</p>
+                            {platform.connected ? (
+                              <p className="text-xs text-emerald-400 flex items-center gap-1 mt-0.5">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Connected
+                              </p>
+                            ) : (
+                              <p className="text-xs text-midnight-500 mt-0.5">Not configured</p>
+                            )}
                           </div>
                         </div>
-                        <button 
-                          onClick={() => showToast.info(`${platform.name} configuration coming soon!`)}
-                          className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
-                        >
-                          Configure
-                        </button>
+                        {platform.connected ? (
+                          <div className="flex items-center gap-2">
+                            {platform.key === 'facebook' && (
+                              <button
+                                onClick={async () => {
+                                  const toastId = showToast.loading('Testing Facebook connection...');
+                                  try {
+                                    const response = await fetch('http://localhost:3001/api/integrations/facebook/test', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({}),
+                                    });
+                                    const data = await response.json();
+                                    showToast.dismiss(toastId);
+                                    if (data.success) {
+                                      showToast.success('✅ Facebook connection successful!');
+                                    } else {
+                                      showToast.error(`❌ Connection failed: ${data.error?.message || 'Unknown error'}`);
+                                    }
+                                  } catch (error: any) {
+                                    showToast.dismiss(toastId);
+                                    showToast.error(`❌ Test failed: ${error.message}`);
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-midnight-700 hover:bg-midnight-600 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <TestTube2 className="w-3 h-3" />
+                                Test
+                              </button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (platform.key === 'facebook') {
+                                  setIsFacebookModalOpen(true);
+                                } else {
+                                  showToast.info(`${platform.name} configuration coming soon!`);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-midnight-700 hover:bg-midnight-600 text-white text-sm rounded-lg transition-colors flex items-center gap-1"
+                            >
+                              <Settings className="w-3 h-3" />
+                              Edit
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => {
+                              if (platform.key === 'facebook') {
+                                setIsFacebookModalOpen(true);
+                              } else {
+                                showToast.info(`${platform.name} configuration coming soon!`);
+                              }
+                            }}
+                            className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-sm rounded-lg transition-colors"
+                          >
+                            Configure
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -624,7 +735,28 @@ export default function PublisherPageDemo() {
         {/* TAB 3: HISTORY */}
         {activeTab === 'history' && (
           <div className="glass-card rounded-2xl p-6">
-            <h2 className="text-2xl font-semibold text-white mb-6">Publishing History</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-semibold text-white">Publishing History</h2>
+                <p className="text-sm text-midnight-400 mt-1">
+                  {publishHistory.length} publish record{publishHistory.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              {publishHistory.length > 0 && (
+                <button
+                  onClick={() => {
+                    if (confirm('Clear all publishing history?')) {
+                      setPublishHistory([]);
+                      localStorage.removeItem('publishHistory');
+                    }
+                  }}
+                  className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Clear History
+                </button>
+              )}
+            </div>
             
             {publishHistory.length === 0 ? (
               <div className="text-center py-12">
@@ -675,9 +807,15 @@ export default function PublisherPageDemo() {
                             </span>
                           )}
                           {entry.success && entry.details?.postId && (
-                            <span className="text-midnight-500">
-                              Post: <span className="text-purple-400">{entry.details.postId}</span>
-                            </span>
+                            <a
+                              href={`https://facebook.com/${entry.details.postId.replace('_', '/posts/')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              View Post
+                            </a>
                           )}
                         </div>
                         {!entry.success && entry.details?.error && (
@@ -703,6 +841,20 @@ export default function PublisherPageDemo() {
           onSaveSuccess={() => {
             showToast.success('WordPress configured successfully!');
             setIsWordPressModalOpen(false);
+          }}
+        />
+      )}
+
+      {/* Facebook Config Modal */}
+      {isFacebookModalOpen && (
+        <FacebookConfigModal
+          isOpen={isFacebookModalOpen}
+          onClose={() => setIsFacebookModalOpen(false)}
+          onSaveSuccess={() => {
+            showToast.success('✅ Facebook configured successfully!');
+            setIsFacebookModalOpen(false);
+            // Refresh platform connection status
+            checkPlatformConnections();
           }}
         />
       )}

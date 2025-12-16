@@ -47,6 +47,48 @@ export class IntegrationsController {
   // ==========================================
 
   /**
+   * GET /api/integrations/mailchimp
+   * Get Mailchimp credentials (masked for security)
+   */
+  async getMailchimpConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'mailchimp'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.send({
+          success: true,
+          data: null,
+        });
+      }
+
+      const config = result.rows[0].config;
+      
+      // Mask sensitive data
+      const maskedConfig = {
+        apiKey: config.apiKey ? '••••••••••••••••' : '',
+        serverPrefix: config.serverPrefix || '',
+        audienceListId: config.audienceListId || '',
+        fromName: config.fromName || '',
+        fromEmail: config.fromEmail || '',
+        replyToEmail: config.replyToEmail || '',
+      };
+
+      return reply.send({
+        success: true,
+        data: maskedConfig,
+      });
+    } catch (error: any) {
+      console.error('❌ Error fetching Mailchimp config:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to fetch config', details: error.message },
+      });
+    }
+  }
+
+  /**
    * POST /api/integrations/mailchimp/save
    * Save Mailchimp credentials
    */
@@ -267,7 +309,7 @@ export class IntegrationsController {
         sourceId = pack_id;
       } else if (content_id) {
         const contentResult = await db.query(
-          `SELECT id, body, title, final_content, draft_content, derivatives FROM contents WHERE id = $1`,
+          `SELECT id, body, title FROM contents WHERE id = $1`,
           [content_id]
         );
 
@@ -282,19 +324,27 @@ export class IntegrationsController {
         }
 
         const content = contentResult.rows[0];
-        derivatives = content.derivatives;
-        sourceContent = content.body || content.final_content || content.draft_content;
+        // Note: contents table stores final approved content in `body`
+        derivatives = null;
+        sourceContent = content.body;
         sourceId = `content-${content_id}`;
       }
 
-      // Check if derivatives exist
-      if (!derivatives || !derivatives.email) {
+      // For packs: require derivatives.email. For library contents: use body directly.
+      const emailContent =
+        pack_id
+          ? (derivatives && (derivatives as any).email)
+          : sourceContent;
+
+      if (!emailContent || (typeof emailContent === 'string' && emailContent.trim().length === 0)) {
         return reply.status(400).send({
           success: false,
           platform: 'mailchimp',
           error: {
-            message: 'No derivatives available',
-            details: 'Please generate derivatives first',
+            message: 'No email content available',
+            details: pack_id
+              ? 'Please generate email derivative first'
+              : 'Content body is empty',
           },
         });
       }
@@ -317,10 +367,9 @@ export class IntegrationsController {
 
       const config = credResult.rows[0].config;
 
-      // Prepare payload from derivatives
-      const emailContent = derivatives.email;
+      // Prepare payload
       const payload = {
-        subject: `Newsletter: ${sourceContent.substring(0, 50)}...`,
+        subject: `Newsletter: ${(sourceContent || '').substring(0, 50)}...`,
         title: `Content ${sourceId.substring(0, 12)}`,
         content: emailContent,
       };
@@ -669,37 +718,98 @@ export class IntegrationsController {
   // ==========================================
 
   /**
-   * POST /api/integrations/facebook/save
+   * GET /api/integrations/facebook
+   * Get Facebook configuration
+   */
+  async getFacebookConfig(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const result = await db.query(
+        `SELECT config FROM integration_credentials WHERE platform = 'facebook'`
+      );
+
+      if (result.rows.length === 0) {
+        return reply.send({
+          success: true,
+          config: {
+            appId: '',
+            appSecret: '',
+            pageId: '',
+            pageAccessToken: '',
+          },
+          status: { connected: false },
+        });
+      }
+
+      const config = result.rows[0].config;
+      
+      // Mask sensitive data
+      const maskedConfig = {
+        appId: config.appId || '',
+        appSecret: config.appSecret ? '••••••••••••••••' : '',
+        pageId: config.pageId || '',
+        pageAccessToken: config.pageAccessToken ? '••••••••••••••••' : '',
+      };
+
+      return reply.send({
+        success: true,
+        config: maskedConfig,
+        status: { connected: !!config.pageAccessToken },
+      });
+    } catch (error: any) {
+      console.error('❌ Error fetching Facebook config:', error);
+      return reply.status(500).send({
+        success: false,
+        error: { message: 'Failed to fetch config', details: error.message },
+      });
+    }
+  }
+
+  /**
+   * POST /api/integrations/facebook
+   * Save Facebook configuration
    */
   async saveFacebookCredentials(
     request: FastifyRequest<{
       Body: {
+        appId: string;
+        appSecret: string;
         pageId: string;
-        accessToken: string;
-        apiVersion?: string;
+        pageAccessToken: string;
       };
     }>,
     reply: FastifyReply
   ) {
     try {
-      const { pageId, accessToken, apiVersion } = request.body;
+      const { appId, appSecret, pageId, pageAccessToken } = request.body;
 
-      const validation = validateFacebookConfig({ pageId, accessToken, apiVersion });
-      if (!validation.valid) {
+      // Basic validation
+      if (!appId || !appSecret || !pageId || !pageAccessToken) {
         return reply.status(400).send({
           success: false,
-          error: { message: 'Validation failed', details: validation.errors.join(', ') },
+          error: { message: 'All fields are required' },
         });
       }
+
+      // Store config (in production, encrypt sensitive data)
+      const config = {
+        appId,
+        appSecret,
+        pageId,
+        pageAccessToken,
+        apiVersion: 'v18.0',
+        updatedAt: new Date().toISOString(),
+      };
 
       await db.query(
         `INSERT INTO integration_credentials (platform, config, updated_at)
          VALUES ('facebook', $1, NOW())
          ON CONFLICT (platform) DO UPDATE SET config = $1, updated_at = NOW()`,
-        [JSON.stringify({ pageId, accessToken, apiVersion: apiVersion || 'v18.0' })]
+        [JSON.stringify(config)]
       );
 
-      return reply.send({ success: true, message: 'Facebook credentials saved' });
+      console.log('✅ Facebook credentials saved successfully');
+
+      return reply.send({ success: true, message: 'Facebook configuration saved' });
     } catch (error: any) {
       console.error('❌ Error saving Facebook credentials:', error);
       return reply.status(500).send({
@@ -711,24 +821,53 @@ export class IntegrationsController {
 
   /**
    * POST /api/integrations/facebook/test
+   * Test Facebook connection by fetching page info
    */
-  async testFacebookConfig(request: FastifyRequest, reply: FastifyReply) {
+  async testFacebookConfig(
+    request: FastifyRequest<{
+      Body: {
+        pageId: string;
+        pageAccessToken: string;
+      };
+    }>,
+    reply: FastifyReply
+  ) {
     try {
-      const result = await db.query(
-        `SELECT config FROM integration_credentials WHERE platform = 'facebook'`
-      );
+      const { pageId, pageAccessToken } = request.body;
 
-      if (result.rows.length === 0) {
+      if (!pageId || !pageAccessToken) {
         return reply.status(400).send({
           success: false,
-          error: { message: 'No Facebook credentials found' },
+          error: { message: 'Page ID and Page Access Token are required' },
         });
       }
 
-      const config = result.rows[0].config;
-      const testResult = await testFacebookConnection(config);
+      // Test by fetching page info
+      const response = await fetch(
+        `https://graph.facebook.com/v18.0/${pageId}?fields=name,id&access_token=${pageAccessToken}`
+      );
 
-      return reply.send(testResult);
+      const data = await response.json();
+
+      if (data.error) {
+        console.error('❌ Facebook API error:', data.error);
+        return reply.status(400).send({
+          success: false,
+          error: {
+            message: 'Failed to connect to Facebook',
+            details: data.error.message || 'Invalid credentials',
+          },
+        });
+      }
+
+      console.log('✅ Facebook connection test successful:', data.name);
+
+      return reply.send({
+        success: true,
+        pageName: data.name,
+        pageId: data.id,
+        message: 'Connection successful',
+      });
     } catch (error: any) {
       console.error('❌ Error testing Facebook:', error);
       return reply.status(500).send({
@@ -747,7 +886,7 @@ export class IntegrationsController {
   ) {
     try {
       const { pack_id, content_id } = request.body;
-      let derivatives: any;
+      let message: string = '';
 
       if (pack_id) {
         const packResult = await db.query(
@@ -760,10 +899,18 @@ export class IntegrationsController {
             error: { message: 'Pack not found' },
           });
         }
-        derivatives = packResult.rows[0].derivatives;
+        const derivatives = packResult.rows[0].derivatives;
+        if (!derivatives || !derivatives.linkedin) {
+          return reply.status(400).send({
+            success: false,
+            error: { message: 'No derivatives available for pack' },
+          });
+        }
+        message = derivatives.linkedin;
       } else if (content_id) {
+        // For library content, use body directly (create excerpt for Facebook)
         const contentResult = await db.query(
-          `SELECT derivatives FROM contents WHERE id = $1`,
+          `SELECT title, body FROM contents WHERE id = $1`,
           [content_id]
         );
         if (contentResult.rows.length === 0) {
@@ -772,13 +919,39 @@ export class IntegrationsController {
             error: { message: 'Content not found' },
           });
         }
-        derivatives = contentResult.rows[0].derivatives;
-      }
-
-      if (!derivatives || !derivatives.linkedin) {
+        
+        const { title, body } = contentResult.rows[0];
+        // Convert markdown to Facebook-friendly plain text (preserving line breaks)
+        const cleanBody = body
+          ? body
+              // Fix headings stuck to next paragraph (e.g., "### TitleSome text")
+              .replace(/(#{1,3}\s*[^\n]+)([A-ZÀ-ỸĐ][a-zà-ỹđ])/g, '$1\n\n$2')
+              // H3 -> emoji bullet with proper spacing
+              .replace(/^###\s*(.+)$/gm, '\n\n🔹 $1\n')
+              // H2 -> pin emoji with proper spacing  
+              .replace(/^##\s*(.+)$/gm, '\n\n📌 $1\n')
+              // H1 -> megaphone with proper spacing
+              .replace(/^#\s*(.+)$/gm, '\n\n📣 $1\n')
+              // Bold -> plain but preserve text
+              .replace(/\*\*(.+?)\*\*/g, '$1')
+              // Italic -> plain
+              .replace(/\*(.+?)\*/g, '$1')
+              // Bullet points
+              .replace(/^[-*]\s+/gm, '• ')
+              // Numbered lists
+              .replace(/^\d+\.\s+/gm, '➤ ')
+              // Clean up excessive line breaks (max 2)
+              .replace(/\n{4,}/g, '\n\n\n')
+              .replace(/^\n+/, '')  // Remove leading newlines
+              .trim()
+          : '';
+        
+        // Facebook allows up to 63,206 chars - post full content
+        message = title ? `📢 ${title}\n\n${cleanBody}` : cleanBody;
+      } else {
         return reply.status(400).send({
           success: false,
-          error: { message: 'No derivatives available' },
+          error: { message: 'Either pack_id or content_id is required' },
         });
       }
 
@@ -793,9 +966,7 @@ export class IntegrationsController {
       }
 
       const config = credResult.rows[0].config;
-      const publishResult = await publishToFacebook(config, {
-        message: derivatives.linkedin,
-      });
+      const publishResult = await publishToFacebook(config, { message });
 
       if (publishResult.success) {
         return reply.send(publishResult);

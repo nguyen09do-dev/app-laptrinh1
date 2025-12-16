@@ -61,6 +61,9 @@ export class DocumentsService {
       // Archive old version
       await this.archiveDocumentVersion(docId, existingDoc);
 
+      // Delete old chunks before creating new ones
+      await db.query('DELETE FROM document_chunks WHERE doc_id = $1', [docId]);
+
       console.log(`📝 Creating version ${versionNumber} for document: ${metadata.title}`);
     } else if (existingDoc && options?.createVersion === false) {
       // Update existing document without versioning

@@ -5,7 +5,8 @@
 
 export interface FacebookConfig {
   pageId: string;
-  accessToken: string;
+  accessToken?: string; // Legacy field
+  pageAccessToken?: string; // New field from DB
   apiVersion?: string;
 }
 
@@ -43,7 +44,9 @@ export async function testFacebookConnection(
 ): Promise<{ success: boolean; error?: any }> {
   try {
     const apiVersion = config.apiVersion || 'v18.0';
-    const url = `https://graph.facebook.com/${apiVersion}/${config.pageId}?fields=name,access_token&access_token=${config.accessToken}`;
+    // Support both pageAccessToken (new) and accessToken (legacy)
+    const token = config.pageAccessToken || config.accessToken;
+    const url = `https://graph.facebook.com/${apiVersion}/${config.pageId}?fields=name,id&access_token=${token}`;
 
     const response = await fetch(url, {
       method: 'GET',
@@ -90,11 +93,14 @@ export async function publishToFacebook(
   try {
     const apiVersion = config.apiVersion || 'v18.0';
     const url = `https://graph.facebook.com/${apiVersion}/${config.pageId}/feed`;
+    
+    // Support both pageAccessToken (new) and accessToken (legacy)
+    const token = config.pageAccessToken || config.accessToken;
 
     const postData: any = {
       message: payload.message,
       published: payload.published !== false,
-      access_token: config.accessToken,
+      access_token: token,
     };
 
     if (payload.link) {
