@@ -1,15 +1,35 @@
-# 🚀 AI Idea Generator
+# 🚀 AI Content Multiplier
 
-Ứng dụng tạo ý tưởng content sử dụng AI, được xây dựng với Fastify + TypeScript + PostgreSQL + Docker + Next.js + Tailwind.
+> AI-Powered Content Generation & Multi-Platform Publishing System
 
-## 📋 Tính năng
+Ứng dụng tạo nội dung AI và xuất bản đa nền tảng, được xây dựng với Fastify + TypeScript + PostgreSQL + Next.js + Tailwind CSS.
 
-- ✅ **CRUD API** cho Ideas (Create, Read, Update, Delete)
-- ✅ **AI Generation** - Tạo 10 ý tưởng content bằng OpenAI
-- ✅ **Retry Logic** - Tự động retry với exponential backoff khi API fail
-- ✅ **AJV Validation** - Validate response từ AI
-- ✅ **Beautiful UI** - Giao diện đẹp với Tailwind CSS
-- ✅ **Docker Support** - PostgreSQL chạy qua Docker Compose
+## ✨ Tính năng
+
+### Core Features
+- ✅ **AI Idea Generation** - Tạo 10 ý tưởng content với OpenAI/Gemini
+- ✅ **Content Briefs** - Tạo outline chi tiết cho content
+- ✅ **Full Content Writing** - Viết bài dài ~2000 từ bằng AI
+- ✅ **Content Derivatives** - Tạo biến thể cho nhiều nền tảng (Twitter, LinkedIn, Email, Blog, SEO)
+- ✅ **RAG System** - Tích hợp tài liệu với vector search (pgvector)
+- ✅ **Content Packs** - Quản lý nhóm content theo chủ đề
+
+### Multi-Platform Publishing
+- ✅ **WordPress** - Tự động đăng bài lên WordPress
+- ✅ **Mailchimp** - Gửi email campaign
+- ✅ **Facebook** - Đăng lên Facebook Page
+- ✅ **Instagram** - Đăng ảnh và caption
+- ✅ **Twitter/X** - Tweet tự động
+- ✅ **LinkedIn** - Đăng bài lên LinkedIn
+- ✅ **Zalo** - Gửi tin nhắn Zalo OA
+
+### Technical Features
+- ✅ **Streaming AI Responses** - Real-time content generation
+- ✅ **Multi-Provider Support** - OpenAI & Google Gemini
+- ✅ **TypeScript Strict Mode** - Type-safe codebase
+- ✅ **Database Migrations** - Version-controlled schema
+- ✅ **CI/CD Ready** - GitHub Actions workflow included
+- ✅ **Production Deployment** - Ready for Railway + Vercel
 
 ## 🏗️ Cấu trúc Project
 
@@ -43,81 +63,151 @@
         └── globals.css
 ```
 
-## 🚀 Hướng dẫn Cài đặt & Chạy
+## 🚀 Quick Start
 
-### Bước 1: Chuẩn bị môi trường
+### For Development
 
-Đảm bảo đã cài đặt:
+See **`QUICK_START.md`** for local development setup.
+
+### For Production Deployment
+
+**👉 START HERE:** Read **`START_HERE.md`** for deployment guide.
+
+**Quick deployment steps:**
+1. Deploy backend on Railway (20 min) - See `RAILWAY_SETUP.md`
+2. Deploy frontend on Vercel (15 min) - See `VERCEL_SETUP.md`
+3. Connect & test (10 min) - See `DEPLOYMENT_CHECKLIST.md`
+
+**Total time:** ~1 hour
+
+---
+
+## 📚 Documentation
+
+### Deployment Guides
+- **`START_HERE.md`** - Quick start for deployment
+- **`DEPLOYMENT_GUIDE.md`** - Complete deployment guide
+- **`DEPLOYMENT_CHECKLIST.md`** - Step-by-step checklist
+- **`RAILWAY_SETUP.md`** - Railway (backend + DB) setup
+- **`VERCEL_SETUP.md`** - Vercel (frontend) setup
+- **`PART_2_COMPLETE.md`** - Deployment work summary
+
+### Development Guides
+- **`QUICK_START.md`** - Local development setup
+- **`CLAUDE.md`** - AI coding context & conventions
+- **`DATABASE_SETUP.md`** - Database configuration
+
+---
+
+## 🏗️ Development Setup
+
+### Prerequisites
+
 - Node.js 18+
 - Docker & Docker Compose
 - Git
+- OpenAI or Gemini API key
 
-### Bước 2: Clone project (nếu cần)
-
-```bash
-cd G:\Code01-HWAIcontentmulti
-```
-
-### Bước 3: Khởi động PostgreSQL
+### Local Setup
 
 ```bash
-# Chạy PostgreSQL container
+# 1. Clone repository
+git clone <your-repo-url>
+cd Code01-HWAIcontentmulti
+
+# 2. Start PostgreSQL
 docker compose up -d
 
-# Kiểm tra container đã chạy
-docker compose ps
-```
-
-### Bước 4: Cấu hình Backend
-
-```bash
-# Di chuyển vào folder backend
+# 3. Setup backend
 cd backend
-
-# Cài đặt dependencies
 npm install
+cp ../env.example .env
+# Edit .env and add your API keys
 
-# Tạo file .env (copy từ example hoặc tạo mới)
-# Nội dung file .env:
-# DATABASE_URL=postgresql://postgres:postgres123@localhost:5432/ai_ideas_db
-# OPENAI_API_KEY=your_openai_api_key_here
-# PORT=3001
-# HOST=0.0.0.0
-```
+# 4. Run migrations
+npm run dev  # Backend will auto-create tables
 
-⚠️ **Quan trọng**: Thay `your_openai_api_key_here` bằng API key thực từ [OpenAI Platform](https://platform.openai.com/api-keys)
+# 5. Setup frontend (in new terminal)
+cd ../frontend
+npm install
+cp ../env.example .env.local
+# Edit .env.local if needed
 
-### Bước 5: Chạy Backend
-
-```bash
-# Trong folder backend
+# 6. Start frontend
 npm run dev
 
-# Server sẽ chạy tại http://localhost:3001
+# 7. Open browser
+# Frontend: http://localhost:3000
+# Backend: http://localhost:3001
 ```
 
-### Bước 6: Cài đặt & Chạy Frontend
+**Detailed setup:** See `QUICK_START.md`
+
+---
+
+## 🧪 Testing & CI
+
+### Run All Checks
 
 ```bash
-# Mở terminal mới, di chuyển vào folder frontend
+# From root directory
+npm run ci
+
+# This runs:
+# - Backend: lint, typecheck, build
+# - Frontend: lint, typecheck, build
+```
+
+### Individual Checks
+
+```bash
+# Backend
+cd backend
+npm run lint       # ESLint
+npm run typecheck  # TypeScript
+npm run build      # Compile
+
+# Frontend
 cd frontend
-
-# Cài đặt dependencies
-npm install
-
-# Chạy development server
-npm run dev
-
-# Frontend sẽ chạy tại http://localhost:3000
+npm run lint       # Next.js lint
+npm run typecheck  # TypeScript
+npm run build      # Next.js build
 ```
 
-### Bước 7: Sử dụng App
+### GitHub Actions
 
-1. Mở trình duyệt tại `http://localhost:3000`
-2. Nhập **Persona** (VD: "Content Creator", "Tech YouTuber")
-3. Nhập **Industry** (VD: "Technology", "Marketing", "Education")
-4. Click **"Generate 10 Ideas"**
-5. Xem danh sách ideas được tạo!
+CI automatically runs on push/PR via `.github/workflows/ci.yml`
+
+---
+
+## 🚀 Production Deployment
+
+### Option 1: Railway + Vercel (Recommended)
+
+**Backend + Database:** Railway
+- PostgreSQL with pgvector
+- Auto-deploy from GitHub
+- $5/month free credit
+
+**Frontend:** Vercel
+- Next.js optimized
+- Auto-deploy from GitHub
+- Free tier available
+
+**Guides:**
+1. Start: `START_HERE.md`
+2. Backend: `RAILWAY_SETUP.md`
+3. Frontend: `VERCEL_SETUP.md`
+4. Checklist: `DEPLOYMENT_CHECKLIST.md`
+
+### Option 2: Self-Hosted
+
+Use Docker Compose for full stack:
+```bash
+docker compose up -d
+```
+
+See `docker-compose.yml` for configuration.
 
 ## 📡 API Endpoints
 
@@ -184,48 +274,193 @@ Frontend đã được cấu hình proxy trong `next.config.js`. Nếu vẫn g�
 - Đảm bảo backend chạy đúng port 3001
 - Kiểm tra CORS config trong `backend/src/index.ts`
 
-## 📚 Tech Stack
+## 🛠️ Tech Stack
 
-**Backend:**
-- Fastify - Web framework
-- TypeScript - Language
-- PostgreSQL - Database
-- node-pg - Database driver
-- OpenAI SDK - AI integration
-- AJV - JSON validation
+### Backend
+- **Framework:** Fastify v4
+- **Language:** TypeScript (strict mode)
+- **Database:** PostgreSQL 16 + pgvector
+- **AI Providers:** OpenAI (gpt-4o-mini), Google Gemini (gemini-1.5-flash)
+- **Validation:** AJV (JSON Schema)
+- **Document Processing:** pdf-parse, mammoth, cheerio
 
-**Frontend:**
-- Next.js 14 - React framework
-- Tailwind CSS - Styling
-- TypeScript - Language
+### Frontend
+- **Framework:** Next.js 14 (App Router)
+- **Language:** TypeScript (strict mode)
+- **Styling:** Tailwind CSS v3
+- **UI:** Custom components
+- **State:** React hooks + Server Components
+- **Markdown:** react-markdown
+- **Charts:** recharts
 
-**Infrastructure:**
-- Docker Compose - Container orchestration
+### Infrastructure
+- **Containerization:** Docker + Docker Compose
+- **CI/CD:** GitHub Actions
+- **Deployment:** Railway (backend) + Vercel (frontend)
+- **Database:** PostgreSQL with pgvector extension
 
-## 📝 Ghi chú cho người mới
+## 📁 Project Structure
 
-### Cấu trúc Backend giải thích
+```
+Code01-HWAIcontentmulti/
+├── backend/
+│   ├── src/
+│   │   ├── routes/          # API endpoints
+│   │   ├── controllers/     # HTTP handlers
+│   │   ├── services/        # Business logic
+│   │   ├── lib/             # Utilities (DB, LLM)
+│   │   ├── schema/          # Validation schemas
+│   │   └── middleware/      # Request processing
+│   ├── migrations/          # Database migrations (11 files)
+│   ├── run-all-migrations.js  # Migration automation
+│   └── package.json
+│
+├── frontend/
+│   ├── app/
+│   │   ├── dashboard/       # Dashboard page
+│   │   ├── ideas/           # Ideas management
+│   │   ├── briefs/          # Content briefs
+│   │   ├── content/         # Full content
+│   │   ├── derivatives/     # Content variations
+│   │   ├── documents/       # RAG document upload
+│   │   ├── publisher/       # Multi-platform publishing
+│   │   ├── analytics/       # Performance tracking
+│   │   └── components/      # Reusable UI components
+│   └── package.json
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml           # GitHub Actions CI
+│
+├── DEPLOYMENT_GUIDE.md      # Complete deployment guide
+├── DEPLOYMENT_CHECKLIST.md  # Quick checklist
+├── RAILWAY_SETUP.md         # Railway guide
+├── VERCEL_SETUP.md          # Vercel guide
+├── START_HERE.md            # Quick start
+├── CLAUDE.md                # AI coding context
+├── env.example              # Environment template
+├── docker-compose.yml       # Docker setup
+└── package.json             # Root CI scripts
+```
 
-- **routes/** - Định nghĩa URL endpoints và schema validation
-- **controllers/** - Xử lý HTTP request/response
-- **services/** - Chứa business logic (tách riêng để dễ test)
-- **lib/** - Các utility như database connection, LLM client
-- **schema/** - Định nghĩa schema cho validation
+---
 
-### Flow khi Generate Ideas
+## 🔄 Content Generation Flow
 
-1. User submit form → Frontend gọi `POST /api/ideas/generate`
-2. Controller nhận request, gọi Service
-3. Service tạo prompt, gọi LLMClient
-4. LLMClient gọi OpenAI API
-5. Response được validate bằng AJV schema
-6. Nếu fail → retry với exponential backoff (1s, 2s, 4s)
-7. Nếu success → lưu vào PostgreSQL
-8. Trả về danh sách ideas đã lưu
+### Ideas → Briefs → Content → Derivatives → Publish
+
+```mermaid
+graph LR
+    A[Generate Ideas] --> B[Create Brief]
+    B --> C[Write Content]
+    C --> D[Create Derivatives]
+    D --> E[Publish to Platforms]
+    
+    F[Upload Documents] --> G[RAG System]
+    G --> B
+    G --> C
+```
+
+### Detailed Flow
+
+1. **Ideas Generation**
+   - User inputs persona + industry
+   - AI generates 10 ideas
+   - Ideas saved to database
+
+2. **Brief Creation**
+   - Select idea
+   - AI creates detailed outline
+   - Optional: Use RAG for context
+
+3. **Content Writing**
+   - AI writes full article (~2000 words)
+   - Streaming response for UX
+   - Optional: RAG integration
+
+4. **Derivatives**
+   - Generate variations:
+     - Twitter thread
+     - LinkedIn post
+     - Email newsletter
+     - Blog post
+     - SEO meta tags
+
+5. **Publishing**
+   - Select platform(s)
+   - One-click publish
+   - Track performance
+
+---
+
+## 🔐 Environment Variables
+
+### Backend (Required)
+
+```bash
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+OPENAI_API_KEY=sk-proj-xxx  # or GEMINI_API_KEY
+NODE_ENV=development
+PORT=3001
+HOST=0.0.0.0
+```
+
+### Frontend (Required)
+
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
+
+**Full reference:** See `env.example`
+
+---
+
+## 🧩 Key Features Explained
+
+### RAG (Retrieval Augmented Generation)
+
+Upload documents (PDF, DOCX, TXT) to enhance content generation:
+- Documents chunked and embedded
+- Vector similarity search with pgvector
+- Context injected into AI prompts
+- Improves accuracy and relevance
+
+### Multi-Provider AI
+
+Switch between OpenAI and Gemini:
+```bash
+DEFAULT_AI_PROVIDER=gemini  # or openai
+```
+
+Benefits:
+- Cost optimization (Gemini free tier)
+- Fallback if one provider fails
+- Compare output quality
+
+### Content Derivatives
+
+One content → Multiple formats:
+- **Twitter:** 280-char threads
+- **LinkedIn:** Professional posts
+- **Email:** Newsletter format
+- **Blog:** SEO-optimized
+- **Meta Tags:** Title, description, keywords
+
+### Multi-Platform Publishing
+
+Integrated platforms:
+- WordPress (REST API)
+- Mailchimp (API v3)
+- Facebook (Graph API)
+- Instagram (Graph API)
+- Twitter/X (API v2)
+- LinkedIn (API)
+- Zalo (OA API)
 
 ## 📄 License
 
 MIT License - Tự do sử dụng và học tập!
+
 
 
 
