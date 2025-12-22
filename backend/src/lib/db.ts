@@ -24,7 +24,7 @@ export const db = new Pool({
 });
 
 // Xử lý lỗi kết nối
-db.on('error', (err) => {
+db.on('error', (err: Error) => {
   console.error('❌ Database connection error:', err);
 });
 
