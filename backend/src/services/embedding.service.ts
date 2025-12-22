@@ -218,7 +218,7 @@ export class EmbeddingService {
 
     // Gemini batch embedding
     const result = await model.batchEmbedContents({
-      requests: texts.map(text => ({ content: { parts: [{ text }] } })),
+      requests: texts.map(text => ({ content: { role: 'user', parts: [{ text }] } })),
     });
 
     return result.embeddings.map(emb => this.padEmbedding(emb.values, 1536));

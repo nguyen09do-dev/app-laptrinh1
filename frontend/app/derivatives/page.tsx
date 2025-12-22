@@ -405,9 +405,9 @@ export default function DerivativesPage() {
               <PublishActionsPanel
                 packId={selectedPack.pack_id}
                 hasDerivatives={
-                  selectedPack.derivatives &&
+                  !!(selectedPack.derivatives &&
                   selectedPack.derivatives.twitter_thread &&
-                  selectedPack.derivatives.twitter_thread.length > 0
+                  selectedPack.derivatives.twitter_thread.length > 0)
                 }
               />
             )}

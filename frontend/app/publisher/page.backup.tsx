@@ -428,7 +428,7 @@ export default function MultiPlatformPublisherPage() {
                       <h3 className="text-lg font-semibold text-white">Derivatives Ready</h3>
                     </div>
                     <p className="text-midnight-300 mb-4">
-                      Your content has been optimized for multiple platforms. Click "Continue" to review and publish.
+                      Your content has been optimized for multiple platforms. Click &quot;Continue&quot; to review and publish.
                     </p>
                     <button
                       onClick={generateDerivatives}

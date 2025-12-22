@@ -1,7 +1,6 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { documentsService } from '../services/documents.service.js';
 import { ragService } from '../services/rag.service.js';
-import multipart from '@fastify/multipart';
 
 /**
  * RAG Controller
@@ -133,21 +132,21 @@ export class RAGController {
         const parts = request.parts();
         let partCount = 0;
         const maxParts = 10; // Safety limit
-        
+
         for await (const part of parts) {
           partCount++;
           if (partCount > maxParts) {
             console.warn('⚠️  Too many parts, stopping iteration');
             break;
           }
-          
+
           // Skip the file part we already have
-          if (part.filename === fileData.filename) {
+          if ('filename' in part && part.filename === fileData.filename) {
             continue;
           }
-          
+
           // This is a form field
-          if (!part.filename && part.fieldname) {
+          if (!('filename' in part) && 'fieldname' in part && 'value' in part) {
             const fieldName = part.fieldname;
             try {
               const fieldValue = await part.value;

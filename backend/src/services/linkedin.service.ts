@@ -13,6 +13,18 @@ export interface LinkedInPublishPayload {
   visibility?: 'PUBLIC' | 'CONNECTIONS';
 }
 
+interface LinkedInErrorResponse {
+  message?: string;
+}
+
+interface LinkedInUserResponse {
+  localizedFirstName?: string;
+}
+
+interface LinkedInPostResponse {
+  id?: string;
+}
+
 /**
  * Validate LinkedIn configuration
  */
@@ -51,7 +63,7 @@ export async function testLinkedInConnection(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as LinkedInErrorResponse;
       return {
         success: false,
         error: {
@@ -62,7 +74,7 @@ export async function testLinkedInConnection(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as LinkedInUserResponse;
     console.log('✅ LinkedIn connection test successful:', data.localizedFirstName);
 
     return { success: true };
@@ -115,7 +127,7 @@ export async function publishToLinkedIn(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as LinkedInErrorResponse;
       return {
         success: false,
         error: {
@@ -126,7 +138,7 @@ export async function publishToLinkedIn(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as LinkedInPostResponse;
     const postId = data.id;
     console.log('✅ Published to LinkedIn:', postId);
 
@@ -145,4 +157,6 @@ export async function publishToLinkedIn(
     };
   }
 }
+
+
 

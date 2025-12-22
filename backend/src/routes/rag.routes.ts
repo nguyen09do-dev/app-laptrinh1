@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { RAGController } from '../controllers/rag.controller.js';
-import { validateCitations, validateCitationsOptional } from '../middleware/citationValidator.js';
+// Citation validators available for future use if needed
+// import { validateCitations, validateCitationsOptional } from '../middleware/citationValidator.js';
 
 /**
  * RAG Routes

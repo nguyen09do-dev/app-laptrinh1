@@ -48,6 +48,37 @@ interface PublishResult {
   };
 }
 
+interface WordPressErrorResponse {
+  code?: string;
+  message?: string;
+  data?: {
+    status?: number;
+  };
+}
+
+interface WordPressUserResponse {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  roles?: string[];
+}
+
+interface WordPressCategoryResponse {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface WordPressPostResponse {
+  id: number;
+  link: string;
+  title: {
+    rendered: string;
+  };
+  status: string;
+}
+
 /**
  * Validate WordPress configuration
  */
@@ -174,22 +205,22 @@ export async function testWordpressConnection(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        
+        const errorData = await response.json().catch(() => ({})) as WordPressErrorResponse;
+
         if (response.status === 401) {
           return {
             success: false,
             error: 'Authentication failed. Please check your username and application password.',
           };
         }
-        
+
         if (response.status === 404) {
           return {
             success: false,
             error: 'WordPress REST API not found. Please verify your site URL and ensure REST API is enabled.',
           };
         }
-        
+
         if (response.status === 403) {
           return {
             success: false,
@@ -204,8 +235,8 @@ export async function testWordpressConnection(
         };
       }
 
-      const userInfo = await response.json();
-      
+      const userInfo = await response.json() as WordPressUserResponse;
+
       console.log('✅ WordPress connection test successful');
       console.log('   User:', userInfo.name || userInfo.username);
       console.log('   Role:', userInfo.roles?.join(', ') || 'Unknown');
@@ -287,9 +318,9 @@ async function getOrCreateCategory(
     });
 
     if (searchResponse.ok) {
-      const categories = await searchResponse.json();
-      const exactMatch = categories.find((cat: any) => cat.name.toLowerCase() === categoryName.toLowerCase());
-      
+      const categories = await searchResponse.json() as WordPressCategoryResponse[];
+      const exactMatch = categories.find((cat) => cat.name.toLowerCase() === categoryName.toLowerCase());
+
       if (exactMatch) {
         console.log(`✅ Found existing category: ${categoryName} (ID: ${exactMatch.id})`);
         return { success: true, categoryId: exactMatch.id };
@@ -319,16 +350,16 @@ async function getOrCreateCategory(
     });
 
     if (!createResponse.ok) {
-      const errorData = await createResponse.json().catch(() => ({}));
+      const errorData = await createResponse.json().catch(() => ({})) as WordPressErrorResponse;
       return {
         success: false,
         error: errorData.message || `Failed to create category: HTTP ${createResponse.status}`,
       };
     }
 
-    const newCategory = await createResponse.json();
+    const newCategory = await createResponse.json() as WordPressCategoryResponse;
     console.log(`✅ Created new category: ${categoryName} (ID: ${newCategory.id})`);
-    
+
     return { success: true, categoryId: newCategory.id };
   } catch (error: any) {
     console.error(`❌ Error getting/creating category "${categoryName}":`, error);
@@ -419,9 +450,9 @@ export async function publishToWordpress(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({})) as WordPressErrorResponse;
         console.error('❌ WordPress create post failed:', errorData);
-        
+
         return {
           success: false,
           platform: 'wordpress',
@@ -432,8 +463,8 @@ export async function publishToWordpress(
         };
       }
 
-      const post = await response.json();
-      
+      const post = await response.json() as WordPressPostResponse;
+
       console.log('✅ Post created successfully!');
       console.log('   Post ID:', post.id);
       console.log('   Post URL:', post.link);
@@ -472,3 +503,5 @@ export async function publishToWordpress(
     };
   }
 }
+
+

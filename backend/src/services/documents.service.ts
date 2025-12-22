@@ -1,6 +1,6 @@
 import { db } from '../lib/db.js';
 import { embeddingService } from './embedding.service.js';
-import * as pdf from 'pdf-parse';
+import { PDFParse } from 'pdf-parse';
 import * as mammoth from 'mammoth';
 import * as cheerio from 'cheerio';
 
@@ -51,7 +51,6 @@ export class DocumentsService {
 
     let docId: string;
     let versionNumber = 1;
-    let isNewDocument = !existingDoc;
 
     if (existingDoc && options?.createVersion !== false) {
       // Document exists - create new version
@@ -69,7 +68,6 @@ export class DocumentsService {
       // Update existing document without versioning
       docId = existingDoc.doc_id;
       versionNumber = existingDoc.version_number;
-      isNewDocument = false;
 
       // Delete old chunks
       await db.query('DELETE FROM document_chunks WHERE doc_id = $1', [docId]);
@@ -321,13 +319,20 @@ export class DocumentsService {
    */
   private async extractFromPDF(buffer: Buffer): Promise<string> {
     try {
-      const data = await pdf(buffer);
-      const text = data.text || '';
-      
+      // Create PDFParse instance with buffer data
+      const parser = new PDFParse({ data: buffer });
+
+      // Extract text using getText() method
+      const result = await parser.getText();
+      const text = result.text || '';
+
+      // Clean up
+      await parser.destroy();
+
       if (!text || text.trim().length === 0) {
         throw new Error('PDF file appears to be empty or contains no extractable text');
       }
-      
+
       return text;
     } catch (error) {
       console.error('❌ PDF extraction error:', error);

@@ -137,7 +137,7 @@ export class PacksService {
     if (typeof value !== 'string') return value;
     try {
       return JSON.parse(value);
-    } catch (e) {
+    } catch {
       console.warn('Failed to parse JSON in PacksService:', value?.substring?.(0, 100));
       return fallback;
     }
@@ -469,7 +469,7 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
    * This method wraps generateDraftStream and waits for completion
    */
   async generateDraftComplete(input: CreateDraftInput): Promise<ContentPack> {
-    const { brief_id, pack_id, audience, useRAG, wordCount, style, searchFilters } = input;
+    const { brief_id, pack_id, useRAG, wordCount, style } = input;
     const packId = pack_id || randomUUID();
 
     console.log(`📦 Generating draft pack (complete) for brief ${brief_id}`, {
@@ -479,13 +479,12 @@ CHỈ viết nội dung bài viết, KHÔNG thêm giải thích hay metadata.`;
       style,
     });
 
-    let fullContent = '';
     let finalPack: ContentPack | null = null;
 
     // Collect all chunks from the stream
     for await (const event of this.generateDraftStream(input, { temperature: 0.7, maxTokens: 2000 })) {
       if (event.type === 'chunk') {
-        fullContent += event.data.text || '';
+        // Chunks are streamed but not accumulated in this implementation
       } else if (event.type === 'done') {
         finalPack = event.data as ContentPack;
       } else if (event.type === 'error') {

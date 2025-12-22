@@ -16,6 +16,23 @@ export interface TwitterPublishPayload {
   replyToTweetId?: string; // For threading
 }
 
+interface TwitterErrorResponse {
+  title?: string;
+  detail?: string;
+}
+
+interface TwitterUserResponse {
+  data?: {
+    username?: string;
+  };
+}
+
+interface TwitterTweetResponse {
+  data?: {
+    id?: string;
+  };
+}
+
 /**
  * Validate Twitter configuration
  */
@@ -51,7 +68,7 @@ function generateTwitterAuthHeader(
   method: string,
   url: string,
   config: TwitterConfig,
-  params: Record<string, string> = {}
+  _params: Record<string, string> = {}
 ): string {
   // This is a simplified version. For production, use a library like 'oauth-1.0a'
   // For now, we'll use Bearer Token authentication which is simpler
@@ -90,7 +107,7 @@ export async function testTwitterConnection(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as TwitterErrorResponse;
       return {
         success: false,
         error: {
@@ -101,7 +118,7 @@ export async function testTwitterConnection(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as TwitterUserResponse;
     console.log('✅ Twitter connection test successful:', data.data?.username);
 
     return { success: true };
@@ -154,7 +171,7 @@ export async function publishToTwitter(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as TwitterErrorResponse;
       return {
         success: false,
         error: {
@@ -165,7 +182,7 @@ export async function publishToTwitter(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as TwitterTweetResponse;
     console.log('✅ Published to Twitter:', data.data?.id);
 
     return {
@@ -229,4 +246,6 @@ export async function publishTwitterThread(
     };
   }
 }
+
+
 

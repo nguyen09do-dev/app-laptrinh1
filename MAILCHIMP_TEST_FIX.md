@@ -271,3 +271,5 @@ The backend endpoint `/api/integrations/mailchimp/test` loads credentials from t
 *Fix completed: 2025-12-16 20:39:00 GMT+7*  
 *Mailchimp test connection now working perfectly!* 🎊
 
+
+

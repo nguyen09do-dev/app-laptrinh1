@@ -533,7 +533,7 @@ export default function IdeasPage() {
         {error && (
           <div className="mb-8 p-4 bg-coral-500/10 border border-coral-500/30 rounded-xl text-coral-400 text-center">
             <span className="font-medium">⚠️ Lỗi: </span>
-            {error instanceof Error ? error.message : String(error)}
+            {typeof error === 'string' ? error : String(error)}
           </div>
         )}
 
@@ -1010,7 +1010,7 @@ export default function IdeasPage() {
                   ) : (
                     <div className="text-center py-8 text-midnight-500">
                       <p className="mb-2">Chưa có implementation plan</p>
-                      <p className="text-sm">Click nút "Tạo Implementation" để AI tạo kế hoạch triển khai chi tiết</p>
+                      <p className="text-sm">Click nút &quot;Tạo Implementation&quot; để AI tạo kế hoạch triển khai chi tiết</p>
                     </div>
                   )}
                 </div>

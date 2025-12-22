@@ -16,6 +16,22 @@ export interface FacebookPublishPayload {
   published?: boolean;
 }
 
+interface FacebookErrorResponse {
+  error?: {
+    message?: string;
+    error_user_msg?: string;
+  };
+}
+
+interface FacebookPageResponse {
+  name?: string;
+  id?: string;
+}
+
+interface FacebookPostResponse {
+  id?: string;
+}
+
 /**
  * Validate Facebook configuration
  */
@@ -56,7 +72,7 @@ export async function testFacebookConnection(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as FacebookErrorResponse;
       return {
         success: false,
         error: {
@@ -67,7 +83,7 @@ export async function testFacebookConnection(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as FacebookPageResponse;
     console.log('✅ Facebook connection test successful:', data.name);
 
     return { success: true };
@@ -116,7 +132,7 @@ export async function publishToFacebook(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as FacebookErrorResponse;
       return {
         success: false,
         error: {
@@ -127,7 +143,7 @@ export async function publishToFacebook(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as FacebookPostResponse;
     console.log('✅ Published to Facebook:', data.id);
 
     return {

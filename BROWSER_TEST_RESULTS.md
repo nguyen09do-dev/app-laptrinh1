@@ -251,3 +251,5 @@ Check state:
 *Test performed: 2025-12-15*  
 *Backend restarted ✅ | Frontend needs refresh ⚠️*
 
+
+

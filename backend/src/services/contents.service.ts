@@ -205,9 +205,9 @@ CHỈ viết essay văn bản markdown, KHÔNG xuất JSON.`;
             cleanedBody = firstParagraphMatch[1];
           }
         }
-      } catch (e) {
+      } catch {
         // If can't parse as JSON, look for the first capital letter paragraph
-        const match = cleanedBody.match(/(?:^|\n)([A-ZĐÁÀẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][\s\S]*)/);
+        const match = cleanedBody.match(/(?:^|\n)([A-ZĐÁÀẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÉÈẺẼẸÊẾÈÈẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][\s\S]*)/);
         if (match) cleanedBody = match[1];
       }
     }
@@ -481,9 +481,6 @@ CHỈ viết essay văn bản markdown, KHÔNG xuất JSON.`;
 
     // 5. Archive current active version to content_versions
     if (currentActive) {
-      // Get reading_time from current active (might not exist in old data)
-      const readingTime = currentActive.reading_time || Math.ceil((currentActive.word_count || 0) / 200);
-      
       await db.query(
         `INSERT INTO content_versions (
           content_id, version_number, brief_id, title, body, format,

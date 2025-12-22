@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { derivativeGenerator } from '../services/derivativeGenerator.js';
+import { derivativeGenerator, ContentDerivatives } from '../services/derivativeGenerator.js';
 import { db } from '../lib/db.js';
 
 /**
@@ -145,7 +145,7 @@ export class DerivativesController {
       }
 
       if (format === 'md') {
-        const markdown = derivativeGenerator.exportAsMarkdown(derivatives);
+        const markdown = derivativeGenerator.derivativesToMarkdown(derivatives);
         reply.header('Content-Type', 'text/markdown');
         reply.header('Content-Disposition', `attachment; filename="derivatives-${packId}.md"`);
         return reply.send(markdown);
@@ -330,13 +330,13 @@ export class DerivativesController {
       const currentDerivatives = await derivativeGenerator.getDerivatives(packId);
 
       // Merge: update only the requested type
-      const updatedDerivatives = {
+      const updatedDerivatives: any = {
         ...currentDerivatives,
         [type]: derivatives[type],
       };
 
       // Save updated derivatives
-      await derivativeGenerator.saveDerivatives(packId, updatedDerivatives);
+      await derivativeGenerator.saveDerivatives(packId, updatedDerivatives as ContentDerivatives);
 
       // Save version history for this specific type
       const versionId = await derivativeGenerator.saveDerivativeVersion(

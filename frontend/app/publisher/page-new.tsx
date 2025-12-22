@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 interface ContentPack {
-  pack_id: string;
+  pack_id: number;
   brief_id: number;
   brief_title?: string;
   title?: string;
@@ -46,6 +46,18 @@ interface LibraryContent {
   status: string;
   derivatives: ContentDerivatives | null;
   created_at: string;
+}
+
+interface ContentItem {
+  pack_id?: number;
+  content_id?: number;
+  title?: string;
+  brief_title?: string;
+  draft_content: string | null;
+  final_content?: string | null;
+  word_count: number;
+  created_at: string;
+  derivatives: any | null;
 }
 
 type ContentSource = 'packs' | 'library';
@@ -205,8 +217,8 @@ export default function MultiPlatformPublisherPage() {
         : 'http://localhost:3001/api/contents/derivatives';
       
       const bodyKey = contentSource === 'packs' ? 'pack_id' : 'content_id';
-      const bodyValue = contentSource === 'packs' 
-        ? (selected as ContentPack).pack_id 
+      const bodyValue: number = contentSource === 'packs'
+        ? (selected as ContentPack).pack_id
         : (selected as LibraryContent).content_id;
       
       const response = await fetch(endpoint, {
@@ -276,7 +288,7 @@ export default function MultiPlatformPublisherPage() {
     const toastId = showToast.loading(`Publishing to ${platform.name}...`);
 
     try {
-      const bodyPayload = contentSource === 'packs' && selectedPack
+      const bodyPayload: Record<string, number | undefined> = contentSource === 'packs' && selectedPack
         ? { pack_id: selectedPack.pack_id }
         : { content_id: selectedLibraryContent?.content_id };
 
@@ -381,7 +393,7 @@ export default function MultiPlatformPublisherPage() {
     return 'Review and publish to your chosen platforms';
   };
 
-  const handleContentSelect = (item: ContentPack | LibraryContent) => {
+  const handleContentSelect = (item: ContentItem) => {
     if (contentSource === 'packs') {
       setSelectedPack(item as ContentPack);
     } else {
@@ -390,7 +402,9 @@ export default function MultiPlatformPublisherPage() {
   };
 
   const selected = contentSource === 'packs' ? selectedPack : selectedLibraryContent;
-  const currentItems = contentSource === 'packs' ? packs : libraryContents;
+  const currentItems: ContentItem[] = contentSource === 'packs'
+    ? packs.map(p => ({ ...p, pack_id: p.pack_id, content_id: undefined } as ContentItem))
+    : libraryContents.map(c => ({ ...c, pack_id: undefined, content_id: c.content_id } as ContentItem));
 
   // Connection status for platforms
   const connectedPlatforms: Record<string, boolean> = {
@@ -526,7 +540,7 @@ export default function MultiPlatformPublisherPage() {
                       <h3 className="text-lg font-semibold text-white">Derivatives Ready</h3>
                     </div>
                     <p className="text-midnight-300 mb-4">
-                      Your content has been optimized for multiple platforms. Click "Continue" to review and publish.
+                      Your content has been optimized for multiple platforms. Click &quot;Continue&quot; to review and publish.
                     </p>
                     <button
                       onClick={generateDerivatives}
@@ -642,4 +656,6 @@ export default function MultiPlatformPublisherPage() {
     </div>
   );
 }
+
+
 

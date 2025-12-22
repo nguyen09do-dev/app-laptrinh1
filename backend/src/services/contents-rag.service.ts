@@ -339,7 +339,7 @@ CHỈ viết essay văn bản markdown, KHÔNG xuất JSON.`;
             cleanedBody = firstParagraphMatch[1];
           }
         }
-      } catch (e) {
+      } catch {
         const match = cleanedBody.match(/(?:^|\n)([A-ZĐÁÀẢÃẠÂẤẦẨẪẬĂẮẰẲẴẶÉÈẺẼẸÊẾỀỂỄỆÍÌỈĨỊÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢÚÙỦŨỤƯỨỪỬỮỰÝỲỶỸỴ][\s\S]*)/);
         if (match) cleanedBody = match[1];
       }

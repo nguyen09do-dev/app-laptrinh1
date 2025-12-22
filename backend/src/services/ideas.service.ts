@@ -1,6 +1,6 @@
 import { db } from '../lib/db.js';
 import { llmClient, AIProvider } from '../lib/llmClient.js';
-import { validateGeneratedIdeas, IdeaItem } from '../schema/ideaGenerate.schema.js';
+import { validateGeneratedIdeas } from '../schema/ideaGenerate.schema.js';
 import { randomUUID } from 'crypto';
 
 /**

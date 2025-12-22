@@ -333,7 +333,7 @@ export function MailchimpAuthCard({ onSaveSuccess }: MailchimpAuthCardProps) {
             <p className="mt-1 text-xs text-red-500">{errors.fromName}</p>
           )}
           <p className="mt-1 text-xs text-gray-500">
-            This name will appear as the sender in recipients' inboxes
+            This name will appear as the sender in recipients&apos; inboxes
           </p>
         </div>
 

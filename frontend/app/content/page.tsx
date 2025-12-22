@@ -102,7 +102,6 @@ export default function ContentPage() {
         await fetchData();
         setSelectedContent(null);
         showToast.success('Đã xóa content thành công!');
-        setSuccessMessage(null);
       } else {
         showToast.error(data.error || 'Không thể xóa content');
       }
@@ -126,8 +125,8 @@ export default function ContentPage() {
   };
 
   // Get unique values for filters
-  const uniqueIndustries = Array.from(new Set(contents.map(c => c.industry).filter(Boolean))).sort();
-  const uniquePersonas = Array.from(new Set(contents.map(c => c.persona).filter(Boolean))).sort();
+  const uniqueIndustries = Array.from(new Set(contents.map(c => c.industry).filter((x: string | undefined): x is string => Boolean(x)))).sort() as string[];
+  const uniquePersonas = Array.from(new Set(contents.map(c => c.persona).filter((x: string | undefined): x is string => Boolean(x)))).sort() as string[];
   const uniqueStatuses = Array.from(new Set(contents.map(c => c.status))).sort();
   const uniqueFormats = Array.from(new Set(contents.map(c => c.format))).sort();
 
@@ -234,8 +233,8 @@ export default function ContentPage() {
                     >
                       Tất cả ({contents.length})
                     </button>
-                    {Array.from(new Set(contents.map(c => c.format))).sort().map((format) => {
-                      const count = contents.filter(c => c.format === format).length;
+                    {Array.from(new Set(contents.map((c: Content) => c.format))).sort().map((format: string) => {
+                      const count = contents.filter((c: Content) => c.format === format).length;
                       return (
                         <button
                           key={format}
@@ -269,8 +268,8 @@ export default function ContentPage() {
                     >
                       Tất cả ({contents.length})
                     </button>
-                    {uniqueIndustries.map((ind) => {
-                      const count = contents.filter(c => c.industry === ind).length;
+                    {uniqueIndustries.map((ind: string) => {
+                      const count = contents.filter((c: Content) => c.industry === ind).length;
                       return (
                         <button
                           key={ind}
@@ -304,8 +303,8 @@ export default function ContentPage() {
                     >
                       Tất cả ({contents.length})
                     </button>
-                    {uniquePersonas.map((per) => {
-                      const count = contents.filter(c => c.persona === per).length;
+                    {uniquePersonas.map((per: string) => {
+                      const count = contents.filter((c: Content) => c.persona === per).length;
                       return (
                         <button
                           key={per}

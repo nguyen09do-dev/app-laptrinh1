@@ -14,6 +14,26 @@ export interface InstagramPublishPayload {
   imageUrl: string; // Instagram requires image URL (must be publicly accessible)
 }
 
+interface InstagramErrorResponse {
+  error?: {
+    message?: string;
+    error_user_msg?: string;
+  };
+}
+
+interface InstagramUserResponse {
+  username?: string;
+  name?: string;
+}
+
+interface InstagramMediaContainerResponse {
+  id?: string;
+}
+
+interface InstagramPublishResponse {
+  id?: string;
+}
+
 /**
  * Validate Instagram configuration
  */
@@ -52,7 +72,7 @@ export async function testInstagramConnection(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as InstagramErrorResponse;
       return {
         success: false,
         error: {
@@ -63,7 +83,7 @@ export async function testInstagramConnection(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as InstagramUserResponse;
     console.log('✅ Instagram connection test successful:', data.username);
 
     return { success: true };
@@ -106,7 +126,7 @@ export async function publishToInstagram(
     });
 
     if (!createResponse.ok) {
-      const errorData = await createResponse.json().catch(() => ({}));
+      const errorData = await createResponse.json().catch(() => ({})) as InstagramErrorResponse;
       return {
         success: false,
         error: {
@@ -117,7 +137,7 @@ export async function publishToInstagram(
       };
     }
 
-    const createResult = await createResponse.json();
+    const createResult = await createResponse.json() as InstagramMediaContainerResponse;
     const containerId = createResult.id;
 
     // Step 2: Publish Media Container
@@ -136,7 +156,7 @@ export async function publishToInstagram(
     });
 
     if (!publishResponse.ok) {
-      const errorData = await publishResponse.json().catch(() => ({}));
+      const errorData = await publishResponse.json().catch(() => ({})) as InstagramErrorResponse;
       return {
         success: false,
         error: {
@@ -147,7 +167,7 @@ export async function publishToInstagram(
       };
     }
 
-    const publishResult = await publishResponse.json();
+    const publishResult = await publishResponse.json() as InstagramPublishResponse;
     console.log('✅ Published to Instagram:', publishResult.id);
 
     return {
@@ -165,4 +185,6 @@ export async function publishToInstagram(
     };
   }
 }
+
+
 

@@ -20,10 +20,21 @@ interface PublishPayload {
   content: string;
 }
 
-interface MailchimpError {
-  status: number;
-  detail: string;
-  title: string;
+interface MailchimpErrorResponse {
+  status?: number;
+  detail?: string;
+  title?: string;
+  message?: string;
+}
+
+interface MailchimpPingResponse {
+  health_status?: string;
+}
+
+interface MailchimpCampaignResponse {
+  id: string;
+  web_id?: number;
+  status?: string;
 }
 
 interface PublishResult {
@@ -152,9 +163,9 @@ export async function testMailchimpConnection(config: MailchimpConfig): Promise<
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData = await response.json().catch(() => ({})) as MailchimpErrorResponse;
         const errorMessage = errorData.detail || errorData.title || errorData.message || `HTTP ${response.status}: ${response.statusText}`;
-        
+
         // Provide helpful error messages
         if (response.status === 401) {
           return {
@@ -168,14 +179,14 @@ export async function testMailchimpConnection(config: MailchimpConfig): Promise<
             error: `Server prefix "${serverPrefix}" not found. Please verify your server prefix is correct.`,
           };
         }
-        
+
         return {
           success: false,
           error: errorMessage,
         };
       }
 
-      const data = await response.json();
+      const data = await response.json() as MailchimpPingResponse;
 
       // Mailchimp ping returns { "health_status": "Everything's Chimpy!" }
       if (data.health_status) {
@@ -276,7 +287,7 @@ async function createCampaign(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as MailchimpCampaignResponse;
     return {
       success: true,
       campaignId: data.id,

@@ -293,7 +293,7 @@ export default function SettingsPage() {
                 <ul className="space-y-2 text-sm text-midnight-300">
                   <li className="flex items-start gap-2">
                     <span className="text-green-400 mt-0.5">✓</span>
-                    <span><strong>Vietnamese Accent Normalization:</strong> Tìm kiếm không phân biệt dấu (ví dụ: "Tieng Viet" sẽ tìm được "Tiếng Việt")</span>
+                    <span><strong>Vietnamese Accent Normalization:</strong> Tìm kiếm không phân biệt dấu (ví dụ: &quot;Tieng Viet&quot; sẽ tìm được &quot;Tiếng Việt&quot;)</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-green-400 mt-0.5">✓</span>

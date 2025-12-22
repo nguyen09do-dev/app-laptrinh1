@@ -30,7 +30,7 @@ export default function SearchDemo() {
         {/* Search input */}
         <div>
           <label className="block text-midnight-200 text-sm mb-2">
-            Tìm kiếm (thử gõ "tieng viet" hoặc "Tiếng Việt"):
+            Tìm kiếm (thử gõ &quot;tieng viet&quot; hoặc &quot;Tiếng Việt&quot;):
           </label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-midnight-400" />

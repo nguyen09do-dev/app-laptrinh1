@@ -16,6 +16,36 @@ export interface ZaloPublishPayload {
   imageUrl?: string;
 }
 
+interface ZaloErrorResponse {
+  message?: string;
+  error_description?: string;
+  error?: number;
+}
+
+interface ZaloOAResponse {
+  error?: number;
+  message?: string;
+  data?: {
+    name?: string;
+  };
+}
+
+interface ZaloArticleResponse {
+  error?: number;
+  message?: string;
+  data?: {
+    id?: string;
+  };
+}
+
+interface ZaloMessageResponse {
+  error?: number;
+  message?: string;
+  data?: {
+    message_id?: string;
+  };
+}
+
 /**
  * Validate Zalo configuration
  */
@@ -53,7 +83,7 @@ export async function testZaloConnection(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as ZaloErrorResponse;
       return {
         success: false,
         error: {
@@ -64,8 +94,8 @@ export async function testZaloConnection(
       };
     }
 
-    const data = await response.json();
-    
+    const data = await response.json() as ZaloOAResponse;
+
     if (data.error !== 0) {
       return {
         success: false,
@@ -126,7 +156,7 @@ export async function publishToZalo(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as ZaloErrorResponse;
       return {
         success: false,
         error: {
@@ -137,7 +167,7 @@ export async function publishToZalo(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as ZaloArticleResponse;
 
     if (data.error !== 0) {
       return {
@@ -198,7 +228,7 @@ export async function sendZaloMessage(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+      const errorData = await response.json().catch(() => ({})) as ZaloErrorResponse;
       return {
         success: false,
         error: {
@@ -209,7 +239,7 @@ export async function sendZaloMessage(
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as ZaloMessageResponse;
 
     if (data.error !== 0) {
       return {
@@ -239,4 +269,6 @@ export async function sendZaloMessage(
     };
   }
 }
+
+
 

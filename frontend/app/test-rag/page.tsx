@@ -123,7 +123,7 @@ export default function TestRAGPage() {
             </button>
           </div>
           <p className="text-midnight-400 text-sm mt-3">
-            Ví dụ: Nếu tài liệu nói về "AI trong marketing", hãy thử tìm với từ khóa "trí tuệ nhân tạo giúp quảng cáo"
+            Ví dụ: Nếu tài liệu nói về &quot;AI trong marketing&quot;, hãy thử tìm với từ khóa &quot;trí tuệ nhân tạo giúp quảng cáo&quot;
           </p>
         </div>
 
@@ -195,6 +195,8 @@ export default function TestRAGPage() {
     </div>
   );
 }
+
+
 
 
 

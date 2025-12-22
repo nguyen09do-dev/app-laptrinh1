@@ -11,19 +11,15 @@ import {
   publishToWordpress,
 } from '../services/wordpress.service.js';
 import {
-  validateFacebookConfig,
-  testFacebookConnection,
   publishToFacebook,
 } from '../services/facebook.service.js';
 import {
   validateInstagramConfig,
   testInstagramConnection,
-  publishToInstagram,
 } from '../services/instagram.service.js';
 import {
   validateTwitterConfig,
   testTwitterConnection,
-  publishToTwitter,
   publishTwitterThread,
 } from '../services/twitter.service.js';
 import {
@@ -283,8 +279,8 @@ export class IntegrationsController {
       }
 
       let derivatives: any;
-      let sourceContent: string;
-      let sourceId: string;
+      let sourceContent: string = '';
+      let sourceId: string = '';
 
       // Load from pack or library content
       if (pack_id) {
@@ -612,7 +608,7 @@ export class IntegrationsController {
       }
 
       let derivatives: any;
-      let sourceContent: string;
+      let sourceContent: string = '';
 
       // Load from pack or library content
       if (pack_id) {
@@ -847,7 +843,7 @@ export class IntegrationsController {
         `https://graph.facebook.com/v18.0/${pageId}?fields=name,id&access_token=${pageAccessToken}`
       );
 
-      const data = await response.json();
+      const data: any = await response.json();
 
       if (data.error) {
         console.error('❌ Facebook API error:', data.error);

@@ -117,39 +117,64 @@ export function EditDerivativeModal({
   const [aiContent, setAiContent] = useState('');
 
   // Platform-specific parameters
-  const [twitterParams, setTwitterParams] = useState({
+  const [twitterParams, setTwitterParams] = useState<{
+    threadLength: number;
+    includeHashtags: boolean;
+    includeEmojis: boolean;
+    tone: string;
+  }>({
     threadLength: 10,
     includeHashtags: true,
     includeEmojis: true,
-    tone: 'engaging' as const,
+    tone: 'engaging',
   });
 
-  const [linkedinParams, setLinkedinParams] = useState({
-    tone: 'professional' as const,
+  const [linkedinParams, setLinkedinParams] = useState<{
+    tone: string;
+    includeHashtags: boolean;
+    callToAction: string;
+    length: string;
+  }>({
+    tone: 'professional',
     includeHashtags: true,
-    callToAction: 'light' as const,
-    length: 'medium' as const,
+    callToAction: 'light',
+    length: 'medium',
   });
 
-  const [emailParams, setEmailParams] = useState({
-    tone: 'friendly' as const,
-    subjectLineStyle: 'benefit-driven' as const,
-    ctaPlacement: 'bottom' as const,
-    urgency: 'low' as const,
+  const [emailParams, setEmailParams] = useState<{
+    tone: string;
+    subjectLineStyle: string;
+    ctaPlacement: string;
+    urgency: string;
+  }>({
+    tone: 'friendly',
+    subjectLineStyle: 'benefit-driven',
+    ctaPlacement: 'bottom',
+    urgency: 'low',
   });
 
-  const [blogParams, setBlogParams] = useState({
+  const [blogParams, setBlogParams] = useState<{
+    seoOptimized: boolean;
+    includeKeywords: boolean;
+    readingLevel: string;
+    structure: string;
+  }>({
     seoOptimized: true,
     includeKeywords: true,
-    readingLevel: 'intermediate' as const,
-    structure: 'mixed' as const,
+    readingLevel: 'intermediate',
+    structure: 'mixed',
   });
 
-  const [seoParams, setSeoParams] = useState({
+  const [seoParams, setSeoParams] = useState<{
+    maxLength: number;
+    includeKeywords: boolean;
+    focusKeyword: string;
+    tone: string;
+  }>({
     maxLength: 160,
     includeKeywords: true,
     focusKeyword: '',
-    tone: 'compelling' as const,
+    tone: 'compelling',
   });
 
   const platformConfig = PLATFORM_CONFIG[type];
@@ -422,7 +447,7 @@ export function EditDerivativeModal({
                         <div>
                           <label className="text-sm text-gray-300 mb-2 block">Tone</label>
                           <div className="grid grid-cols-2 gap-2">
-                            {(['engaging', 'informative', 'humorous', 'professional'] as const).map(tone => (
+                            {(['engaging', 'informative', 'humorous', 'professional'] as const).map((tone: 'engaging' | 'informative' | 'humorous' | 'professional') => (
                               <button
                                 key={tone}
                                 onClick={() => setTwitterParams({...twitterParams, tone})}
@@ -449,13 +474,13 @@ export function EditDerivativeModal({
                         <div>
                           <label className="text-sm text-gray-300 mb-2 block">Tone</label>
                           <div className="grid grid-cols-2 gap-2">
-                            {(['professional', 'thought-leadership', 'casual-professional', 'inspirational'] as const).map(tone => (
+                            {(['professional', 'thought-leadership', 'casual-professional', 'inspirational'] as const).map((tone: 'professional' | 'thought-leadership' | 'casual-professional' | 'inspirational') => (
                               <button
                                 key={tone}
                                 onClick={() => setLinkedinParams({...linkedinParams, tone})}
                                 className={`px-3 py-2 rounded-lg text-sm ${linkedinParams.tone === tone ? 'bg-blue-600 text-white' : 'bg-white/5 text-gray-300'}`}
                               >
-                                {tone.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                {tone.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                               </button>
                             ))}
                           </div>
@@ -463,7 +488,7 @@ export function EditDerivativeModal({
                         <div>
                           <label className="text-sm text-gray-300 mb-2 block">Length</label>
                           <div className="grid grid-cols-3 gap-2">
-                            {(['short', 'medium', 'long'] as const).map(len => (
+                            {(['short', 'medium', 'long'] as const).map((len: 'short' | 'medium' | 'long') => (
                               <button
                                 key={len}
                                 onClick={() => setLinkedinParams({...linkedinParams, length: len})}
@@ -482,7 +507,7 @@ export function EditDerivativeModal({
                         <div>
                           <label className="text-sm text-gray-300 mb-2 block">Tone</label>
                           <div className="grid grid-cols-2 gap-2">
-                            {(['friendly', 'professional', 'persuasive', 'informative'] as const).map(tone => (
+                            {(['friendly', 'professional', 'persuasive', 'informative'] as const).map((tone: 'friendly' | 'professional' | 'persuasive' | 'informative') => (
                               <button
                                 key={tone}
                                 onClick={() => setEmailParams({...emailParams, tone})}
@@ -496,13 +521,13 @@ export function EditDerivativeModal({
                         <div>
                           <label className="text-sm text-gray-300 mb-2 block">Subject Line Style</label>
                           <div className="grid grid-cols-2 gap-2">
-                            {(['direct', 'curiosity', 'benefit-driven', 'personalized'] as const).map(style => (
+                            {(['direct', 'curiosity', 'benefit-driven', 'personalized'] as const).map((style: 'direct' | 'curiosity' | 'benefit-driven' | 'personalized') => (
                               <button
                                 key={style}
                                 onClick={() => setEmailParams({...emailParams, subjectLineStyle: style})}
                                 className={`px-3 py-2 rounded-lg text-sm ${emailParams.subjectLineStyle === style ? 'bg-purple-500 text-white' : 'bg-white/5 text-gray-300'}`}
                               >
-                                {style.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                {style.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
                               </button>
                             ))}
                           </div>
@@ -515,7 +540,7 @@ export function EditDerivativeModal({
                         <div>
                           <label className="text-sm text-gray-300 mb-2 block">Reading Level</label>
                           <div className="grid grid-cols-3 gap-2">
-                            {(['simple', 'intermediate', 'advanced'] as const).map(level => (
+                            {(['simple', 'intermediate', 'advanced'] as const).map((level: 'simple' | 'intermediate' | 'advanced') => (
                               <button
                                 key={level}
                                 onClick={() => setBlogParams({...blogParams, readingLevel: level})}
@@ -639,6 +664,8 @@ export function EditDerivativeModal({
     </AnimatePresence>
   );
 }
+
+
 
 
 

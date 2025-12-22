@@ -31,7 +31,7 @@ export class BriefsService {
     if (typeof value !== 'string') return value;
     try {
       return JSON.parse(value);
-    } catch (e) {
+    } catch {
       console.warn('Failed to parse JSON:', value?.substring?.(0, 100));
       return fallback;
     }

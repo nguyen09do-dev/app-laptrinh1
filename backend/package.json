@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "echo \"No tests yet\" && exit 0",
+    "ci": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
@@ -23,9 +27,13 @@
     "pgvector": "^0.2.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^20.10.6",
     "@types/pdf-parse": "^1.1.5",
     "@types/pg": "^8.10.9",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "eslint": "^9.39.2",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   }

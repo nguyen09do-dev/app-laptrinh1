@@ -18,7 +18,7 @@ interface Brief {
   objective: string;
   target_audience: string;
   key_messages?: string[] | null;
-  tone_style: string | null;
+  tone_style?: string | null;
   content_structure?: {
     sections: Array<{
       name: string;
@@ -166,15 +166,15 @@ export default function BriefsPage() {
 
   // Filter ideas that don't have briefs yet
   const ideasWithoutBriefs = approvedIdeas.filter(
-    idea => !briefs.some(brief => brief.idea_id === idea.id)
+    (idea: Idea) => !briefs.some((brief: Brief) => brief.idea_id === idea.id)
   );
 
   // Get unique industries and personas from briefs
-  const uniqueIndustries = Array.from(new Set(briefs.map(b => b.industry).filter(Boolean))).sort();
-  const uniquePersonas = Array.from(new Set(briefs.map(b => b.persona).filter(Boolean))).sort();
+  const uniqueIndustries = Array.from(new Set(briefs.map((b: Brief) => b.industry).filter((x: string | undefined): x is string => Boolean(x)))).sort() as string[];
+  const uniquePersonas = Array.from(new Set(briefs.map((b: Brief) => b.persona).filter((x: string | undefined): x is string => Boolean(x)))).sort() as string[];
 
   // Filter briefs
-  const filteredBriefs = briefs.filter(brief => {
+  const filteredBriefs = briefs.filter((brief: Brief) => {
     const matchIndustry = filterIndustry === 'all' || brief.industry === filterIndustry;
     const matchPersona = filterPersona === 'all' || brief.persona === filterPersona;
     return matchIndustry && matchPersona;
@@ -237,8 +237,8 @@ export default function BriefsPage() {
                     >
                       Tất cả ({briefs.length})
                     </button>
-                    {uniqueIndustries.map((ind) => {
-                      const count = briefs.filter(b => b.industry === ind).length;
+                    {uniqueIndustries.map((ind: string) => {
+                      const count = briefs.filter((b: Brief) => b.industry === ind).length;
                       return (
                         <button
                           key={ind}
@@ -272,8 +272,8 @@ export default function BriefsPage() {
                     >
                       Tất cả ({briefs.length})
                     </button>
-                    {uniquePersonas.map((per) => {
-                      const count = briefs.filter(b => b.persona === per).length;
+                    {uniquePersonas.map((per: string) => {
+                      const count = briefs.filter((b: Brief) => b.persona === per).length;
                       return (
                         <button
                           key={per}
@@ -328,7 +328,7 @@ export default function BriefsPage() {
               📌 Ideas đã duyệt (chưa có brief)
             </h2>
             <div className="grid gap-4">
-              {ideasWithoutBriefs.map(idea => (
+              {ideasWithoutBriefs.map((idea: Idea) => (
                 <div key={idea.id} className="glass-card p-4 rounded-xl flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-midnight-100">{idea.title}</h3>
@@ -427,7 +427,7 @@ export default function BriefsPage() {
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid gap-4">
-              {filteredBriefs.map(brief => (
+              {filteredBriefs.map((brief: Brief) => (
                 <div
                   key={brief.id}
                   className="glass-card p-6 rounded-xl hover:bg-midnight-900/40 transition-colors cursor-pointer"
@@ -783,7 +783,7 @@ export default function BriefsPage() {
                           </li>
                           <li className="flex items-start gap-2">
                             <span className="text-green-400 mt-0.5">✓</span>
-                            <span>Giảm thiểu "hallucination" (AI bịa đặt)</span>
+                            <span>Giảm thiểu &quot;hallucination&quot; (AI bịa đặt)</span>
                           </li>
                         </ul>
                       </div>

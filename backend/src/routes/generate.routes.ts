@@ -25,7 +25,7 @@ export async function generateRoutes(fastify: FastifyInstance) {
     request: FastifyRequest<{ Body: GenerateStreamBody }>,
     reply: FastifyReply
   ) => {
-    const { prompt, temperature = 0.7, useRAG = false, searchFilters } = request.body;
+    const { prompt, temperature = 0.7, useRAG = false } = request.body;
 
     if (!prompt) {
       return reply.status(400).send({
@@ -59,15 +59,13 @@ export async function generateRoutes(fastify: FastifyInstance) {
           // Extract key terms from prompt for search
           const searchQuery = prompt.slice(0, 500); // Use first 500 chars as query
           
-          const ragResults = await ragService.search(searchQuery, {
-            limit: 3,
-            author: searchFilters?.author,
-            tags: searchFilters?.tags,
+          const ragResults = await ragService.searchChunks(searchQuery, {
+            match_count: 3,
           });
 
           if (ragResults.length > 0) {
             const context = ragResults
-              .map((r, i) => `[${i + 1}] ${r.content}`)
+              .map((r: { content: string }, i: number) => `[${i + 1}] ${r.content}`)
               .join('\n\n');
             
             enhancedPrompt = `Use the following context from the knowledge base to enhance your response:\n\n${context}\n\n---\n\n${prompt}`;

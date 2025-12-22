@@ -85,23 +85,31 @@ export default function DashboardPage() {
   };
 
   // Prepare chart data for KPI cards with formatted dates
-  const ideasChartData = safeTimeline?.ideas?.map(item => ({
+  const ideasChartData = safeTimeline?.ideas?.map((item: { date: string; count: string; approved: string }) => ({
     date: formatChartDate(item.date),
     value: parseInt(item.count) || 0,
   })) || [];
 
-  const briefsChartData = safeTimeline?.briefs?.map(item => ({
+  const briefsChartData = safeTimeline?.briefs?.map((item: { date: string; count: string }) => ({
     date: formatChartDate(item.date),
     value: parseInt(item.count) || 0,
   })) || [];
 
-  const contentsChartData = safeTimeline?.contents?.map(item => ({
+  const contentsChartData = safeTimeline?.contents?.map((item: { date: string; count: string; words: string }) => ({
     date: formatChartDate(item.date),
     value: parseInt(item.count) || 0,
   })) || [];
 
   // Build workflow items
-  const workflowItems = [];
+  const workflowItems: Array<{
+    id: number;
+    stage: 'Research' | 'Create' | 'Optimize';
+    label: string;
+    progress: number;
+    status: 'queued' | 'in_progress';
+    due: string;
+    href: string;
+  }> = [];
 
   // Find approved ideas without briefs
   const approvedIdeasWithoutBriefs = safeIdeas.filter(
@@ -151,10 +159,14 @@ export default function DashboardPage() {
   });
 
   // Recent activity
-  const recentActivities = [];
+  const recentActivities: Array<{
+    time: string;
+    text: string;
+    type: 'ideate' | 'research' | 'create' | 'publish';
+  }> = [];
 
   // Add recent ideas
-  safeIdeas.slice(0, 2).forEach(idea => {
+  safeIdeas.slice(0, 2).forEach((idea: Idea) => {
     const timeAgo = getTimeAgo(idea.created_at);
     recentActivities.push({
       time: timeAgo,
@@ -164,7 +176,7 @@ export default function DashboardPage() {
   });
 
   // Add recent briefs
-  safeBriefs.slice(0, 1).forEach(brief => {
+  safeBriefs.slice(0, 1).forEach((brief: Brief) => {
     const timeAgo = getTimeAgo(brief.created_at);
     recentActivities.push({
       time: timeAgo,
@@ -174,7 +186,7 @@ export default function DashboardPage() {
   });
 
   // Add recent contents
-  safeContents.slice(0, 1).forEach(content => {
+  safeContents.slice(0, 1).forEach((content: Content) => {
     const timeAgo = getTimeAgo(content.created_at);
     recentActivities.push({
       time: timeAgo,
@@ -422,7 +434,11 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {recentActivities.map((activity, idx) => (
+                  {recentActivities.map((activity: {
+                    time: string;
+                    text: string;
+                    type: 'ideate' | 'research' | 'create' | 'publish';
+                  }, idx: number) => (
                     <ActivityItem key={idx} {...activity} />
                   ))}
                 </div>
