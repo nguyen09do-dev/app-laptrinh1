@@ -34,6 +34,7 @@ function createFetchWithTimeout(
   const fetchPromise = fetch(url, {
     ...fetchOptions,
     signal: controller.signal,
+    credentials: 'include', // Include cookies for session
     headers: {
       'Content-Type': 'application/json',
       ...fetchOptions.headers,
