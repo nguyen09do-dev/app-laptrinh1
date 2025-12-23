@@ -3,7 +3,7 @@
  * Fixes: "failed to fetch" errors and slow loading times
  */
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const DEFAULT_TIMEOUT = 15000; // 15 seconds - increased for slow connections
 const MAX_RETRIES = 3; // Increased retries
 const RETRY_DELAY = 1500; // 1.5 seconds
@@ -80,7 +80,10 @@ export async function apiClient<T = any>(
   endpoint: string,
   options: FetchOptions = {}
 ): Promise<{ success: boolean; data?: T; error?: string; count?: number; message?: string }> {
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+  // Build full URL: if endpoint starts with http, use as-is; otherwise prepend API_BASE/api
+  const url = endpoint.startsWith('http') 
+    ? endpoint 
+    : `${API_BASE}/api${endpoint}`;
   
   try {
     const response = await fetchWithRetry(url, {
