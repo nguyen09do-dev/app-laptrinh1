@@ -14,6 +14,7 @@ const { Client } = pg;
 
 // Migration files in order
 const migrations = [
+  '000_init_schema.sql', // MUST run first - creates all base tables
   '001_add_brief_flowmap_approved.sql',
   '002_add_content_packs.sql',
   '003_fix_contents_columns.sql',
