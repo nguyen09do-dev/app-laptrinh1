@@ -3,7 +3,7 @@
  * DELETE THIS FILE after migration completes!
  */
 import { FastifyInstance } from 'fastify';
-import db from '../lib/db.js';
+import { db } from '../lib/db.js';
 
 export default async function migrateRoutes(fastify: FastifyInstance) {
   // POST /api/migrate/fix-content-packs
