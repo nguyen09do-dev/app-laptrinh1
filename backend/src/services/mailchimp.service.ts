@@ -3,7 +3,7 @@
  * Handles email newsletter campaign creation and sending via Mailchimp API
  */
 
-import { markdownToHtml } from '../utils/markdownToHtml';
+import { markdownToHtml } from '../utils/markdownToHtml.js';
 
 interface MailchimpConfig {
   apiKey: string;

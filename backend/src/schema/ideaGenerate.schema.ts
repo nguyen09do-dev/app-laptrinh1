@@ -1,7 +1,7 @@
 import Ajv from 'ajv';
 
 // Khởi tạo AJV validator
-const ajv = new Ajv({ allErrors: true });
+const ajv = new Ajv.default({ allErrors: true });
 
 /**
  * Schema cho một idea item trong mảng response từ AI
