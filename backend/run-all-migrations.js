@@ -25,7 +25,8 @@ const migrations = [
   '008_add_pack_id_to_contents.sql',
   '009_add_integration_credentials.sql',
   '010_add_social_platforms_to_integrations.sql',
-  '011_fix_document_versions_table.sql'
+  '011_fix_document_versions_table.sql',
+  '012_add_brief_id_to_content_packs.sql'
 ];
 
 async function runMigrations() {

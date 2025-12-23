@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS contents (
 CREATE TABLE IF NOT EXISTS content_packs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
+  brief_id INTEGER REFERENCES briefs(id),
   name VARCHAR(255) NOT NULL,
   description TEXT,
   status VARCHAR(50) DEFAULT 'active',
