@@ -23,7 +23,12 @@ const fastify = Fastify({
 
 // Đăng ký CORS để frontend có thể gọi API
 fastify.register(cors, {
-  origin: ['http://localhost:3000', 'http://localhost:3002'], // Cho phép frontend Next.js
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3002',
+    'https://app-laptrinh1.vercel.app', // Production Vercel URL
+    /\.vercel\.app$/ // Allow all Vercel preview deployments
+  ],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization'],
