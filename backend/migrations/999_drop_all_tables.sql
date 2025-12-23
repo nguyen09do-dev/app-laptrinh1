@@ -15,3 +15,4 @@ DROP TABLE IF EXISTS users CASCADE;
 
 -- Drop vector extension if exists
 DROP EXTENSION IF EXISTS vector CASCADE;
+

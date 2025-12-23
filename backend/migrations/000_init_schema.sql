@@ -158,3 +158,4 @@ CREATE INDEX IF NOT EXISTS idx_document_chunks_document_id ON document_chunks(do
 
 CREATE INDEX IF NOT EXISTS idx_integration_credentials_user_id ON integration_credentials(user_id);
 CREATE INDEX IF NOT EXISTS idx_integration_credentials_platform ON integration_credentials(platform);
+

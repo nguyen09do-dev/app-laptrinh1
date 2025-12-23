@@ -22,3 +22,4 @@ node run-all-migrations.js
 
 Write-Host ""
 Write-Host "✅ Done!" -ForegroundColor Green
+
