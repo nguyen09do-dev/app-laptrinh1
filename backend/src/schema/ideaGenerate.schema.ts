@@ -1,8 +1,8 @@
-import AjvModule from 'ajv';
+import Ajv from 'ajv';
 
-// Khởi tạo AJV validator (compatible with both CommonJS and ESM)
-const Ajv = AjvModule.default || AjvModule;
-const ajv = new Ajv({ allErrors: true });
+// Khởi tạo AJV validator
+// @ts-ignore - Ajv default export works at runtime
+const ajv = new (Ajv as any)({ allErrors: true });
 
 /**
  * Schema cho một idea item trong mảng response từ AI
